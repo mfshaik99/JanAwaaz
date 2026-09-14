@@ -1,0 +1,6 @@
+{
+  "name": "JanAwaaz",
+  "description": "A scalable AI platform designed as a Digital Public Good that aggregates citizen development requests across diverse linguistic regions of India.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
