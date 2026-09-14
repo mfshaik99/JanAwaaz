@@ -1,13 +1,21 @@
 import { ReactNode } from 'react';
-import { LayoutDashboard, Users, Zap } from 'lucide-react';
+import { LayoutDashboard, Users, Zap, LogOut } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { auth } from '../firebase';
 
 interface LayoutProps {
   children: ReactNode;
-  activeTab: 'citizen' | 'dashboard';
-  setActiveTab: (tab: 'citizen' | 'dashboard') => void;
 }
 
-export function Layout({ children, activeTab, setActiveTab }: LayoutProps) {
+export function Layout({ children }: LayoutProps) {
+  const location = useLocation();
+  const { user, profile } = useAuth();
+  
+  const handleLogout = async () => {
+    await auth.signOut();
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
@@ -23,29 +31,45 @@ export function Layout({ children, activeTab, setActiveTab }: LayoutProps) {
               </div>
             </div>
             
-            <nav className="flex space-x-2">
-              <button
-                onClick={() => setActiveTab('citizen')}
+            <nav className="flex items-center space-x-2">
+              <Link
+                to="/"
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'citizen'
+                  location.pathname === '/'
                     ? 'bg-blue-50 text-blue-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <Users size={18} />
                 Citizen Portal
-              </button>
-              <button
-                onClick={() => setActiveTab('dashboard')}
+              </Link>
+              <Link
+                to="/dashboard"
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'dashboard'
+                  location.pathname === '/dashboard'
                     ? 'bg-blue-50 text-blue-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <LayoutDashboard size={18} />
                 Policymaker Dashboard
-              </button>
+              </Link>
+              
+              {user ? (
+                <div className="flex items-center ml-4 pl-4 border-l border-slate-200 gap-3">
+                  <span className="text-sm font-medium text-slate-700">
+                    {profile?.name || user.email || user.phoneNumber}
+                    <span className="ml-2 text-[10px] uppercase bg-slate-100 px-2 py-0.5 rounded text-slate-500">{profile?.role || 'user'}</span>
+                  </span>
+                  <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Log out">
+                    <LogOut size={18} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center ml-4 pl-4 border-l border-slate-200 gap-2">
+                  <Link to="/login" className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Log in</Link>
+                </div>
+              )}
             </nav>
           </div>
         </div>

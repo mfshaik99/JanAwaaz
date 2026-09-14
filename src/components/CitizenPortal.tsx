@@ -1,299 +1,309 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Send, AlertCircle, CheckCircle2, Loader2, Globe, MapPin, Navigation, Camera, X, Image as ImageIcon, Video } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
+import { Mic, Bot, Search, Target, MapPin, Navigation, ArrowRight, Loader2 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useAuth } from '../contexts/AuthContext';
+
+// Fix for default marker icon in leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// A component to recenter the map when location changes
+function MapUpdater({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.flyTo(center, 12);
+  }, [center, map]);
+  return null;
+}
 
 export function CitizenPortal() {
-  const [text, setText] = useState('');
-  const [language, setLanguage] = useState('en');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [isRecording, setIsRecording] = useState(false);
-  const [media, setMedia] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
-  
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'success' | 'error'>('idle');
+  const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY || 'f4N2cKxH48dlsL409E5g'; // Keep default key if env is empty
+
+  useEffect(() => {
+    let watchId: number;
+    if (locationStatus === 'locating' || locationStatus === 'success') {
+      if (!navigator.geolocation) {
+        setLocationStatus('error');
+        return;
+      }
+      
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          setLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          setLocationStatus('success');
+        },
+        (error) => {
+          console.error(error);
+          setLocationStatus('error');
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+    
+    return () => {
+      if (watchId !== undefined) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [locationStatus]);
 
   const getLocation = () => {
     setLocationStatus('locating');
-    if (!navigator.geolocation) {
-      setLocationStatus('error');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-        setLocationStatus('success');
-      },
-      (error) => {
-        console.error(error.message || 'Geolocation error', error);
-        setLocationStatus('error');
-      },
-      { enableHighAccuracy: true }
-    );
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert("File is too large. Please upload a file smaller than 10MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMedia(reader.result as string);
-        setMediaType(file.type.startsWith('video/') ? 'video' : 'image');
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleShareClick = () => {
+    navigate(user ? '/submit' : '/login');
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!text.trim() && !media) return;
-
-    setIsSubmitting(true);
-    setStatus('idle');
-
-    try {
-      const payload: any = { text, language, media, mediaType };
-      if (location) {
-        payload.lat = location.lat;
-        payload.lng = location.lng;
-      }
-
-      const response = await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error('Failed to submit');
-
-      setStatus('success');
-      setText('');
-      setMedia(null);
-      setMediaType(null);
-      setLocation(null);
-      setLocationStatus('idle');
-      setTimeout(() => setStatus('idle'), 3000);
-    } catch (error) {
-      console.error(error);
-      setStatus('error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const startVoiceRecording = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please type your request.');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    
-    // Map our app languages to BCP-47 tags
-    const langMap: Record<string, string> = {
-      'en': 'en-IN',
-      'hi': 'hi-IN',
-      'te': 'te-IN',
-      'ta': 'ta-IN',
-      'mr': 'mr-IN'
-    };
-    recognition.lang = langMap[language] || 'en-IN';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => setIsRecording(true);
-    
-    recognition.onresult = (event: any) => {
-      let currentTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        currentTranscript += event.results[i][0].transcript;
-      }
-      // If it's final, append it. If interim, we could show it, but for simplicity we'll just set it
-      if (event.results[0].isFinal) {
-        setText(prev => prev ? prev + ' ' + currentTranscript : currentTranscript);
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error);
-      setIsRecording(false);
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognition.start();
+  const scrollToMap = () => {
+    document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
-      >
-        <div className="p-8 border-b border-slate-100 bg-slate-50/50">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Report a Community Issue</h2>
-          <p className="text-slate-600">Your voice helps prioritize infrastructure development in your region. Tell us what your community needs.</p>
-        </div>
-
-        <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex justify-between items-center">
-              <label className="block text-sm font-medium text-slate-700">Select Language</label>
-              <div className="flex items-center gap-2 text-slate-500 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
-                <Globe size={16} />
-                <select 
-                  value={language} 
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="bg-transparent text-sm focus:outline-none focus:ring-0 font-medium"
-                >
-                  <option value="en">English</option>
-                  <option value="hi">हिंदी (Hindi)</option>
-                  <option value="te">తెలుగు (Telugu)</option>
-                  <option value="ta">தமிழ் (Tamil)</option>
-                  <option value="mr">मराठी (Marathi)</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Describe the issue or request
-              </label>
-              
-              {media && (
-                <div className="mb-4 relative inline-block rounded-xl overflow-hidden border border-slate-200">
-                  {mediaType === 'image' ? (
-                    <img src={media} alt="Upload preview" className="h-32 object-cover" />
-                  ) : (
-                    <div className="h-32 w-48 bg-slate-100 flex items-center justify-center">
-                      <Video className="text-slate-400" size={32} />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { setMedia(null); setMediaType(null); }}
-                    className="absolute top-2 right-2 p-1 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-sm"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
-
-              <div className="relative">
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="E.g., The main road in our village is broken..."
-                  rows={5}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-slate-700 placeholder:text-slate-400"
-                />
-                <button
-                  type="button"
-                  onClick={startVoiceRecording}
-                  className={`absolute bottom-4 right-4 p-3 rounded-full transition-all ${
-                    isRecording 
-                      ? 'bg-red-100 text-red-600 animate-pulse' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                  title={isRecording ? "Listening..." : "Speak your request"}
-                >
-                  <Mic size={20} />
-                </button>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-xs text-slate-500 max-w-md">
-                  You can type in your local language or use the microphone to speak. Our AI will automatically translate and analyze your request.
-                </p>
-                
-                <div className="flex gap-2">
-                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">
-                    <Camera size={14} />
-                    <span className="hidden sm:inline">Attach Photo/Video</span>
-                    <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileChange} />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={getLocation}
-                  disabled={locationStatus === 'locating'}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    locationStatus === 'success' 
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : locationStatus === 'error'
-                      ? 'bg-red-50 text-red-700 border border-red-200'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {locationStatus === 'locating' ? <Loader2 size={14} className="animate-spin" /> : 
-                   locationStatus === 'success' ? <MapPin size={14} /> : 
-                   <Navigation size={14} />}
-                  {locationStatus === 'locating' ? 'Locating...' : 
-                   locationStatus === 'success' ? 'Location Added' : 
-                   locationStatus === 'error' ? 'Location Failed' : 
-                   'Attach My Location'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-              <AnimatePresence>
-                {status === 'success' && (
-                  <motion.div 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center text-emerald-600 text-sm font-medium"
-                  >
-                    <CheckCircle2 size={18} className="mr-2" />
-                    Request submitted successfully!
-                  </motion.div>
-                )}
-                {status === 'error' && (
-                  <motion.div 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center text-red-600 text-sm font-medium"
-                  >
-                    <AlertCircle size={18} className="mr-2" />
-                    Failed to submit. Please try again.
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <button
-                type="submit"
-                disabled={isSubmitting || (!text.trim() && !media)}
-                className="ml-auto flex items-center px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50 font-sans pb-12">
+      
+      {/* 1. Opening Screen (Hero) */}
+      <section className="bg-white px-4 py-20 sm:py-32 flex flex-col items-center justify-center text-center border-b border-slate-100">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="max-w-3xl mx-auto"
+        >
+          <div className="mb-6 flex flex-col items-center">
+            <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full tracking-wide uppercase mb-4 inline-block">
+              Digital Public Infrastructure Platform
+            </span>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 tracking-tight mb-6">
+              Your Voice. <br className="hidden sm:block" />
+              <span className="text-blue-600">Better Development.</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+              Tell us what your community needs. JanAwaaz helps turn citizen needs into better development priorities.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+              <button 
+                onClick={handleShareClick}
+                className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white font-medium rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center justify-center gap-2 text-lg"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={18} className="mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Send size={18} className="mr-2" />
-                    Submit Request
-                  </>
-                )}
+                Share a Development Need <ArrowRight size={20} />
+              </button>
+              <button 
+                onClick={scrollToMap}
+                className="w-full sm:w-auto px-8 py-4 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2 text-lg"
+              >
+                Explore Your Area <MapPin size={20} />
               </button>
             </div>
-          </form>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* 3. What JanAwaaz Does */}
+      <section className="py-20 px-4 bg-slate-50">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">How JanAwaaz Helps</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+            <motion.div initial={{opacity:0, y:20}} whileInView={{opacity:1, y:0}} viewport={{once:true}} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                <Mic size={28} />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">1. You Tell Us</h3>
+              <p className="text-slate-600 text-sm">Voice or text</p>
+            </motion.div>
+
+            <motion.div initial={{opacity:0, y:20}} whileInView={{opacity:1, y:0}} viewport={{once:true}} transition={{delay:0.1}} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                <Bot size={28} />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">2. AI Understands</h3>
+              <p className="text-slate-600 text-sm">Gemini understands your request</p>
+            </motion.div>
+
+            <motion.div initial={{opacity:0, y:20}} whileInView={{opacity:1, y:0}} viewport={{once:true}} transition={{delay:0.2}} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                <Search size={28} />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">3. JanAwaaz Finds Needs</h3>
+              <p className="text-slate-600 text-sm">Combines citizen requests with development data</p>
+            </motion.div>
+
+            <motion.div initial={{opacity:0, y:20}} whileInView={{opacity:1, y:0}} viewport={{once:true}} transition={{delay:0.3}} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                <Target size={28} />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">4. Better Priorities</h3>
+              <p className="text-slate-600 text-sm">Helps policymakers identify where development is most needed</p>
+            </motion.div>
+          </div>
         </div>
-      </motion.div>
+      </section>
+
+      {/* 2. Simple Map Section & 4. Development Information */}
+      <section id="map-section" className="py-20 px-4 bg-white border-y border-slate-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Your Area</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Map Column */}
+            <div className="lg:col-span-2 bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 h-[400px] sm:h-[500px] relative z-0 shadow-inner">
+              <MapContainer 
+                center={location ? [location.lat, location.lng] : [22.9734, 78.6569]} 
+                zoom={location ? 15 : 4} 
+                style={{ height: '100%', width: '100%', zIndex: 1 }}
+                zoomControl={false}
+              >
+                <TileLayer
+                  url={`https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}.png?key=${maptilerApiKey}`}
+                  attribution='&copy; MapTiler &copy; OpenStreetMap contributors'
+                />
+                {location && <MapUpdater center={[location.lat, location.lng]} />}
+                {location && (
+                  <Marker position={[location.lat, location.lng]}>
+                    <Popup>Your current location</Popup>
+                  </Marker>
+                )}
+              </MapContainer>
+              
+              {/* Overlay button for location */}
+              {!location && (
+                <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-slate-900/5 backdrop-blur-[2px] p-4">
+                  <div className="bg-white p-6 rounded-2xl shadow-xl text-center max-w-sm">
+                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Navigation size={24} />
+                    </div>
+                    <p className="text-slate-900 font-medium mb-4">Location access is required to show your exact location.</p>
+                    <button 
+                      onClick={getLocation}
+                      disabled={locationStatus === 'locating'}
+                      className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex justify-center items-center gap-2"
+                    >
+                      {locationStatus === 'locating' ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Finding your location...
+                        </>
+                      ) : (
+                        locationStatus === 'error' ? 'Try Again' : 'Share Location'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Info Column */}
+            <div className="flex flex-col gap-6">
+              {/* Location Card */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                    <MapPin size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide">Your Location</h3>
+                    <p className="text-lg font-bold text-slate-900">{location ? 'Your current location' : 'India'}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Community Requests</span>
+                    <span className="font-semibold text-slate-900">{location ? '124' : '10,000+'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Top Development Need</span>
+                    <span className="font-semibold text-slate-900">Roads</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Infrastructure Status</span>
+                    <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-md">Needs Attention</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Area Needs Card */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex-1">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">What Does Your Area Need?</h3>
+                
+                <div className="space-y-5">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium text-slate-700">Roads</span>
+                      <span className="text-xs font-bold text-red-600">High demand</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-red-500 h-2 rounded-full" style={{ width: '85%' }}></div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium text-slate-700">Healthcare</span>
+                      <span className="text-xs font-bold text-amber-600">Medium demand</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-amber-400 h-2 rounded-full" style={{ width: '45%' }}></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium text-slate-700">Water</span>
+                      <span className="text-xs font-bold text-red-600">High demand</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-red-500 h-2 rounded-full" style={{ width: '70%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Main Action */}
+      <section className="py-24 px-4 bg-slate-50 text-center">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="max-w-2xl mx-auto bg-white p-10 sm:p-14 rounded-[2rem] shadow-sm border border-slate-200"
+        >
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Have a development need?</h2>
+          <p className="text-lg text-slate-600 mb-10">Tell JanAwaaz about it.</p>
+          <button 
+            onClick={handleShareClick}
+            className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white font-medium rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center justify-center gap-2 text-lg mx-auto"
+          >
+            Share a Development Need
+          </button>
+        </motion.div>
+      </section>
+
     </div>
   );
 }

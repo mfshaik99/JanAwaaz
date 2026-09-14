@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application, either citizen or admin.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "role": {
+          "type": "string",
+          "enum": ["citizen", "admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 50
+        }
+      },
+      "required": ["name", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profiles."
+    }
+  }
+}

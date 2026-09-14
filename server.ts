@@ -79,8 +79,8 @@ app.post('/api/requests', async (req, res) => {
         }
       });
     } catch (apiError: any) {
-      if (apiError?.status === 503) {
-        console.warn('Gemini API 503 High Demand, retrying with flash-lite...');
+      if (apiError?.status === 503 || apiError?.status === 429) {
+        console.warn(`Gemini API ${apiError.status}, retrying with flash-lite...`);
         response = await ai.models.generateContent({
           model: "gemini-3.1-flash-lite",
           contents: parts,
@@ -123,6 +123,78 @@ app.post('/api/requests', async (req, res) => {
   } catch (error) {
     console.error('Error processing request:', error);
     res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+app.post('/api/enhance', async (req, res) => {
+  try {
+    const { text, language } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: `You are a helpful AI assistant for Indian citizens. Rewrite the following citizen grievance/request to be clear, detailed, formal, and highly actionable for government policymakers. Do not change the original intent. If the original text is in English, write in English. If it is in another language, write in that language.\n\nOriginal Text: "${text}"`,
+      });
+    } catch (apiError: any) {
+      if (apiError?.status === 503 || apiError?.status === 429) {
+        console.warn(`Gemini API ${apiError.status}, retrying with flash-lite...`);
+        response = await ai.models.generateContent({
+          model: "gemini-3.1-flash-lite",
+          contents: `You are a helpful AI assistant for Indian citizens. Rewrite the following citizen grievance/request to be clear, detailed, formal, and highly actionable for government policymakers. Do not change the original intent. If the original text is in English, write in English. If it is in another language, write in that language.\n\nOriginal Text: "${text}"`,
+        });
+      } else {
+        throw apiError;
+      }
+    }
+    
+    res.json({ enhancedText: response.text });
+  } catch (error) {
+    console.error('Error enhancing text:', error);
+    res.status(500).json({ error: 'Failed to enhance text' });
+  }
+});
+
+app.post('/api/draft-response', async (req, res) => {
+  try {
+    const { issueText, category, priority, location } = req.body;
+    
+    const prompt = `You are drafting an official response from a local government policymaker to a citizen regarding their reported issue.
+    
+Issue Details:
+- Location: ${location}
+- Category: ${category}
+- Priority: ${priority}
+- Citizen's description: "${issueText}"
+
+Draft a short, empathetic, and professional official response (max 3-4 sentences). It should acknowledge the issue, assure them it has been logged into the system, and state that the relevant department will investigate. Write in English.`;
+
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+      });
+    } catch (apiError: any) {
+      if (apiError?.status === 503 || apiError?.status === 429) {
+        console.warn(`Gemini API ${apiError.status}, retrying with flash-lite...`);
+        response = await ai.models.generateContent({
+          model: "gemini-3.1-flash-lite",
+          contents: prompt,
+        });
+      } else {
+        throw apiError;
+      }
+    }
+    
+    res.json({ draftText: response.text });
+  } catch (error) {
+    console.error('Error drafting response:', error);
+    res.status(500).json({ error: 'Failed to draft response' });
   }
 });
 
@@ -173,8 +245,8 @@ Provide 3 short, actionable, data-driven recommendations for high-priority devel
         }
       });
     } catch (apiError: any) {
-      if (apiError?.status === 503) {
-        console.warn('Gemini API 503 High Demand, retrying with flash-lite...');
+      if (apiError?.status === 503 || apiError?.status === 429) {
+        console.warn(`Gemini API ${apiError.status}, retrying with flash-lite...`);
         aiInsightResponse = await ai.models.generateContent({
           model: "gemini-3.1-flash-lite",
           contents: systemPrompt,

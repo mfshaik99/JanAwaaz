@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { 
   AlertTriangle, CheckCircle, Clock, MapPin, 
-  TrendingUp, FileText, ArrowRight, Loader2, Database
+  TrendingUp, FileText, ArrowRight, Loader2, Database, Sparkles, Send
 } from 'lucide-react';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
@@ -23,6 +23,27 @@ const PRIORITY_COLORS: Record<string, string> = {
 export function Dashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [isDrafting, setIsDrafting] = useState<Record<string, boolean>>({});
+
+  const handleDraftResponse = async (reqId: string, issueText: string, category: string, priority: string, location: string) => {
+    setIsDrafting(prev => ({ ...prev, [reqId]: true }));
+    try {
+      const res = await fetch('/api/draft-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issueText, category, priority, location })
+      });
+      if (!res.ok) throw new Error('Failed to draft');
+      const result = await res.json();
+      setDrafts(prev => ({ ...prev, [reqId]: result.draftText }));
+    } catch (e) {
+      console.error(e);
+      alert('Failed to draft response.');
+    } finally {
+      setIsDrafting(prev => ({ ...prev, [reqId]: false }));
+    }
+  };
 
   // Helper to create custom colored icons based on priority
   const createCustomIcon = (priority: string) => {
@@ -81,6 +102,7 @@ export function Dashboard() {
   if (!data) return <div>Failed to load data</div>;
 
   const pieData = Object.entries(data.priorityCounts || {}).map(([name, value]) => ({ name, value }));
+  const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY || 'f4N2cKxH48dlsL409E5g';
 
   return (
     <div className="p-6 sm:p-8 max-w-[1600px] mx-auto space-y-8">
@@ -152,14 +174,8 @@ export function Dashboard() {
               style={{ height: "100%", width: "100%" }}
             >
               <TileLayer
-                url={import.meta.env.VITE_MAPTILER_API_KEY 
-                  ? `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${import.meta.env.VITE_MAPTILER_API_KEY}`
-                  : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                }
-                attribution={import.meta.env.VITE_MAPTILER_API_KEY
-                  ? '&copy; <a href="https://www.maptiler.com/">MapTiler</a> &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                  : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }
+                url={`https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${maptilerApiKey}`}
+                attribution='&copy; <a href="https://www.maptiler.com/">MapTiler</a> &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
               />
               {data.requests.map((req: any) => (
                 <Marker 
@@ -320,11 +336,40 @@ export function Dashboard() {
                   </div>
                 )}
                 {req.media && req.mediaType === 'image' && (
-                  <img src={req.media} alt="Attached issue" className="mt-3 w-48 h-32 object-cover rounded-lg border border-slate-200" />
+                  <img src={req.media} alt="Attached issue" className="mt-3 mb-3 w-48 h-32 object-cover rounded-lg border border-slate-200" />
                 )}
                 {req.media && req.mediaType === 'video' && (
-                  <video src={req.media} controls className="mt-3 w-48 h-32 object-cover rounded-lg border border-slate-200" />
+                  <video src={req.media} controls className="mt-3 mb-3 w-48 h-32 object-cover rounded-lg border border-slate-200" />
                 )}
+
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  {!drafts[req.id] ? (
+                    <button 
+                      onClick={() => handleDraftResponse(req.id, req.text, req.category, req.priority, req.location)}
+                      disabled={isDrafting[req.id]}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 disabled:opacity-50"
+                    >
+                      {isDrafting[req.id] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-purple-600" />}
+                      {isDrafting[req.id] ? 'Drafting...' : 'AI Draft Response'}
+                    </button>
+                  ) : (
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 animate-in fade-in slide-in-from-top-2">
+                      <p className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1">
+                        <Sparkles size={12} className="text-purple-600" /> Official AI Drafted Response
+                      </p>
+                      <textarea 
+                        value={drafts[req.id]} 
+                        onChange={(e) => setDrafts(prev => ({...prev, [req.id]: e.target.value}))}
+                        className="w-full text-sm text-slate-800 bg-white border border-slate-200 rounded p-2 resize-none h-24 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                      <div className="flex justify-end mt-2">
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700 transition-colors">
+                          <Send size={12} /> Send Response
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}

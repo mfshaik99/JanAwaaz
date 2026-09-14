@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'role', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.role is string && (data.role == 'citizen' || data.role == 'admin') &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 20));
+    }
+
+    function isAuthorizedAdminEmail() {
+      // The 3 pre-authorized accounts
+      return request.auth.token.email in ['mfshaik99@gmail.com', 'chirudeepartham@gmail.com', 'maazeem206@gmail.com'];
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      
+      allow create: if isSignedIn() && 
+                    isValidId(userId) && 
+                    request.auth.uid == userId && 
+                    isValidUser(incoming()) &&
+                    (incoming().role == 'admin' ? isAuthorizedAdminEmail() : incoming().role == 'citizen');
+                    
+      allow update: if isSignedIn() && 
+                    request.auth.uid == userId &&
+                    isValidUser(incoming()) &&
+                    incoming().role == existing().role && // Prevent changing own role
+                    incoming().createdAt == existing().createdAt;
+    }
+  }
+}
