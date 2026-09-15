@@ -26,6 +26,45 @@ service cloud.firestore {
       return request.auth.token.email in ['mfshaik99@gmail.com', 'chirudeepartham@gmail.com', 'maazeem206@gmail.com'];
     }
 
+    // Helper for development requests
+    function isValidDevelopmentRequest(data) {
+      return data.keys().hasAll(['citizenId', 'status', 'createdAt']) &&
+             data.citizenId is string && data.citizenId.size() <= 128 &&
+             data.status is string && data.status in ["Submitted", "Under Review", "Prioritized", "Planned", "In Progress", "Completed"] &&
+             (!('citizenName' in data) || (data.citizenName is string && data.citizenName.size() <= 100)) &&
+             (!('originalText' in data) || (data.originalText is string && data.originalText.size() <= 5000)) &&
+             (!('translatedText' in data) || (data.translatedText is string && data.translatedText.size() <= 5000)) &&
+             (!('language' in data) || (data.language is string && data.language.size() <= 10)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+             (!('problem' in data) || (data.problem is string && data.problem.size() <= 500)) &&
+             (!('severity' in data) || (data.severity is string && data.severity.size() <= 50)) &&
+             (!('urgency' in data) || (data.urgency is string && data.urgency.size() <= 50)) &&
+             (!('safetyRisk' in data) || (data.safetyRisk is string && data.safetyRisk.size() <= 50)) &&
+             (!('priorityScore' in data) || data.priorityScore is number) &&
+             (!('priority' in data) || (data.priority is string && data.priority.size() <= 50)) &&
+             (!('summary' in data) || (data.summary is string && data.summary.size() <= 1000)) &&
+             (!('aiSummary' in data) || (data.aiSummary is string && data.aiSummary.size() <= 1000)) &&
+             (!('recommendedAction' in data) || (data.recommendedAction is string && data.recommendedAction.size() <= 1000)) &&
+             (!('media' in data) || (data.media is list && (data.media.size() == 0 || (data.media[0] is map && data.media[0].url is string)))) &&
+             (!('location' in data) || (data.location == null || (data.location is map && 'lat' in data.location && 'lng' in data.location)));
+    }
+
+    match /developmentRequests/{requestId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.citizenId || isAuthorizedAdminEmail());
+      allow list: if isSignedIn() && (request.auth.uid == resource.data.citizenId || isAuthorizedAdminEmail());
+      
+      allow create: if isSignedIn() && 
+                    isValidId(requestId) &&
+                    isValidDevelopmentRequest(incoming()) &&
+                    incoming().citizenId == request.auth.uid;
+                    
+      allow update: if isSignedIn() && 
+                    isValidDevelopmentRequest(incoming()) &&
+                    ((request.auth.uid == existing().citizenId && incoming().diff(existing()).affectedKeys().hasOnly(['status'])) || isAuthorizedAdminEmail());
+      
+      allow delete: if isSignedIn() && isAuthorizedAdminEmail();
+    }
+
     match /users/{userId} {
       allow get: if isSignedIn() && request.auth.uid == userId;
       

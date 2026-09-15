@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Mic, Send, AlertCircle, CheckCircle2, Loader2, Globe, MapPin, Navigation, Camera, X, Image as ImageIcon, Video, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
+import { db, storage } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+interface MediaItem {
+  file: File;
+  type: 'image' | 'video';
+  previewUrl: string;
+}
 
 export function SubmitRequest() {
+  const { user, profile } = useAuth();
   const [text, setText] = useState('');
   const [language, setLanguage] = useState('en');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isRecording, setIsRecording] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [media, setMedia] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'success' | 'error'>('idle');
@@ -38,19 +48,30 @@ export function SubmitRequest() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert("File is too large. Please upload a file smaller than 10MB.");
-        return;
+    const files = e.target.files;
+    if (!files) return;
+    
+    const newItems: MediaItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 50 * 1024 * 1024) {
+        alert("A file is too large. Max 50MB per file.");
+        continue;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMedia(reader.result as string);
-        setMediaType(file.type.startsWith('video/') ? 'video' : 'image');
-      };
-      reader.readAsDataURL(file);
+      const type = file.type.startsWith('video/') ? 'video' : 'image';
+      const previewUrl = URL.createObjectURL(file);
+      newItems.push({ file, type, previewUrl });
     }
+    setMediaList(prev => [...prev, ...newItems]);
+  };
+  
+  const removeMedia = (index: number) => {
+    setMediaList(prev => {
+      const newList = [...prev];
+      URL.revokeObjectURL(newList[index].previewUrl);
+      newList.splice(index, 1);
+      return newList;
+    });
   };
 
   const handleEnhanceWithAI = async () => {
@@ -75,30 +96,74 @@ export function SubmitRequest() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!text.trim() && !media) return;
+    if (!text.trim() && mediaList.length === 0) return;
+    if (!user) {
+      alert("You must be logged in to submit a request.");
+      return;
+    }
 
     setIsSubmitting(true);
     setStatus('idle');
 
     try {
-      const payload: any = { text, language, media, mediaType };
+      // 1. Upload Media Files to Firebase Storage
+      const uploadedMedia = [];
+      let firstImageBase64 = null;
+      
+      for (const item of mediaList) {
+        const fileExt = item.file.name.split('.').pop() || (item.type === 'image' ? 'jpg' : 'mp4');
+        const fileName = `evidence/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const storageRef = ref(storage, fileName);
+        await uploadBytes(storageRef, item.file);
+        const url = await getDownloadURL(storageRef);
+        uploadedMedia.push({
+          type: item.type,
+          url,
+          name: item.file.name
+        });
+        
+        // Convert first image to base64 for AI analysis
+        if (!firstImageBase64 && item.type === 'image') {
+          firstImageBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(item.file);
+          });
+        }
+      }
+
+      // 2. Call AI Analysis
+      const payload: any = { text, language, imageBase64: firstImageBase64 };
       if (location) {
         payload.lat = location.lat;
         payload.lng = location.lng;
       }
 
-      const response = await fetch('/api/requests', {
+      const aiResponse = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error('Failed to submit');
+      if (!aiResponse.ok) throw new Error('Failed to analyze request');
+      const aiData = await aiResponse.json();
+
+      // 3. Save to Firestore
+      await addDoc(collection(db, 'developmentRequests'), {
+        citizenId: user.uid,
+        citizenName: profile?.name || user.email || 'Anonymous Citizen',
+        originalText: text,
+        language,
+        media: uploadedMedia,
+        location: location || null,
+        status: 'Submitted',
+        createdAt: serverTimestamp(),
+        ...aiData
+      });
 
       setStatus('success');
       setText('');
-      setMedia(null);
-      setMediaType(null);
+      setMediaList([]);
       setLocation(null);
       setLocationStatus('idle');
       setTimeout(() => setStatus('idle'), 3000);
@@ -118,8 +183,6 @@ export function SubmitRequest() {
     }
 
     const recognition = new SpeechRecognition();
-    
-    // Map our app languages to BCP-47 tags
     const langMap: Record<string, string> = {
       'en': 'en-IN',
       'hi': 'hi-IN',
@@ -138,7 +201,6 @@ export function SubmitRequest() {
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         currentTranscript += event.results[i][0].transcript;
       }
-      // If it's final, append it. If interim, we could show it, but for simplicity we'll just set it
       if (event.results[0].isFinal) {
         setText(prev => prev ? prev + ' ' + currentTranscript : currentTranscript);
       }
@@ -192,25 +254,6 @@ export function SubmitRequest() {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Describe the issue or request
               </label>
-              
-              {media && (
-                <div className="mb-4 relative inline-block rounded-xl overflow-hidden border border-slate-200">
-                  {mediaType === 'image' ? (
-                    <img src={media} alt="Upload preview" className="h-32 object-cover" />
-                  ) : (
-                    <div className="h-32 w-48 bg-slate-100 flex items-center justify-center">
-                      <Video className="text-slate-400" size={32} />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { setMedia(null); setMediaType(null); }}
-                    className="absolute top-2 right-2 p-1 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-sm"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
 
               <div className="relative">
                 <textarea
@@ -233,52 +276,95 @@ export function SubmitRequest() {
                   <Mic size={20} />
                 </button>
               </div>
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-xs text-slate-500 max-w-sm">
+
+              <div className="mt-3 flex items-center justify-between flex-wrap gap-3">
+                <p className="text-xs text-slate-500 max-w-sm w-full md:w-auto">
                   You can type in your local language or use the microphone to speak. Our AI will automatically translate and analyze your request.
                 </p>
-                
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={handleEnhanceWithAI}
-                    disabled={isEnhancing || !text.trim()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 disabled:opacity-50"
-                  >
-                    {isEnhancing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                    <span className="hidden sm:inline">Enhance with AI</span>
-                  </button>
-
-                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">
-                    <Camera size={14} />
-                    <span className="hidden sm:inline">Attach Photo/Video</span>
-                    <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileChange} />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={getLocation}
-                  disabled={locationStatus === 'locating'}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    locationStatus === 'success' 
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : locationStatus === 'error'
-                      ? 'bg-red-50 text-red-700 border border-red-200'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                <button
+                  type="button"
+                  onClick={handleEnhanceWithAI}
+                  disabled={isEnhancing || !text.trim()}
+                  className="flex w-full sm:w-auto justify-center items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 disabled:opacity-50"
                 >
-                  {locationStatus === 'locating' ? <Loader2 size={14} className="animate-spin" /> : 
-                   locationStatus === 'success' ? <MapPin size={14} /> : 
-                   <Navigation size={14} />}
-                  {locationStatus === 'locating' ? 'Locating...' : 
-                   locationStatus === 'success' ? 'Location Added' : 
-                   locationStatus === 'error' ? 'Location Failed' : 
-                   'Attach My Location'}
-                  </button>
-                </div>
+                  {isEnhancing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  <span>Enhance with AI</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+            <div className="border-t border-slate-100 pt-6">
+              <label className="block text-sm font-semibold text-slate-900 mb-3">Add Evidence (Optional)</label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <label className="flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors text-sm font-medium">
+                  <Camera size={24} className="text-blue-500" />
+                  <span>Take Photo</span>
+                  <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFileChange} />
+                </label>
+                <label className="flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors text-sm font-medium">
+                  <Video size={24} className="text-red-500" />
+                  <span>Record Video</span>
+                  <input type="file" accept="video/*" capture="environment" multiple className="hidden" onChange={handleFileChange} />
+                </label>
+                <label className="flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors text-sm font-medium">
+                  <ImageIcon size={24} className="text-indigo-500" />
+                  <span>Gallery</span>
+                  <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileChange} />
+                </label>
+              </div>
+
+              {mediaList.length > 0 && (
+                <div className="flex flex-wrap gap-4 mt-4">
+                  {mediaList.map((item, index) => (
+                    <div key={index} className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 w-32 h-32 flex-shrink-0">
+                      {item.type === 'image' ? (
+                        <img src={item.previewUrl} alt={`Evidence ${index + 1}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
+                          <Video size={32} />
+                          <span className="text-[10px] font-medium mt-1 truncate w-24 text-center">{item.file.name}</span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeMedia(index)}
+                        className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 text-white rounded-full backdrop-blur-sm transition-colors shadow-sm"
+                        title="Remove evidence"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 pt-6">
+              <label className="block text-sm font-semibold text-slate-900 mb-3">Location</label>
+              <button
+                type="button"
+                onClick={getLocation}
+                disabled={locationStatus === 'locating'}
+                className={`w-full sm:w-auto flex justify-center items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                  locationStatus === 'success' 
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm'
+                    : locationStatus === 'error'
+                    ? 'bg-red-50 text-red-700 border border-red-200 shadow-sm'
+                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm'
+                }`}
+              >
+                {locationStatus === 'locating' ? <Loader2 size={16} className="animate-spin" /> : 
+                 locationStatus === 'success' ? <MapPin size={16} /> : 
+                 <Navigation size={16} />}
+                {locationStatus === 'locating' ? 'Locating...' : 
+                 locationStatus === 'success' ? 'Location Added Successfully' : 
+                 locationStatus === 'error' ? 'Location Failed - Try Again' : 
+                 'Attach My Location'}
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-4">
               <AnimatePresence>
                 {status === 'success' && (
                   <motion.div 
@@ -306,8 +392,8 @@ export function SubmitRequest() {
 
               <button
                 type="submit"
-                disabled={isSubmitting || (!text.trim() && !media)}
-                className="ml-auto flex items-center px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                disabled={isSubmitting || (!text.trim() && mediaList.length === 0)}
+                className="w-full sm:w-auto sm:ml-auto flex justify-center items-center px-8 py-3 sm:px-6 sm:py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isSubmitting ? (
                   <>

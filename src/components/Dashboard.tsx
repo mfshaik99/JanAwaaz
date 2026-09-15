@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -9,8 +9,11 @@ import {
 } from 'recharts';
 import { 
   AlertTriangle, CheckCircle, Clock, MapPin, 
-  TrendingUp, FileText, ArrowRight, Loader2, Database, Sparkles, Send
+  TrendingUp, FileText, ArrowRight, Loader2, Database, Sparkles, Send,
+  X, Image as ImageIcon, Video
 } from 'lucide-react';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
 const PRIORITY_COLORS: Record<string, string> = {
@@ -21,27 +24,21 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export function Dashboard() {
+  const [requests, setRequests] = useState<any[]>([]);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [isDrafting, setIsDrafting] = useState<Record<string, boolean>>({});
+  
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
 
-  const handleDraftResponse = async (reqId: string, issueText: string, category: string, priority: string, location: string) => {
-    setIsDrafting(prev => ({ ...prev, [reqId]: true }));
+  const handleStatusChange = async (reqId: string, newStatus: string) => {
     try {
-      const res = await fetch('/api/draft-response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ issueText, category, priority, location })
-      });
-      if (!res.ok) throw new Error('Failed to draft');
-      const result = await res.json();
-      setDrafts(prev => ({ ...prev, [reqId]: result.draftText }));
+      await updateDoc(doc(db, 'developmentRequests', reqId), { status: newStatus });
+      if (selectedRequest && selectedRequest.id === reqId) {
+        setSelectedRequest({ ...selectedRequest, status: newStatus });
+      }
     } catch (e) {
-      console.error(e);
-      alert('Failed to draft response.');
-    } finally {
-      setIsDrafting(prev => ({ ...prev, [reqId]: false }));
+      console.error('Error updating status', e);
+      alert('Failed to update status');
     }
   };
 
@@ -70,31 +67,68 @@ export function Dashboard() {
   };
 
   useEffect(() => {
-    const fetchData = () => {
-      fetch('/api/dashboard')
-        .then(res => res.json())
-        .then(d => {
-          setData(d);
-          setLoading(false);
-        })
-        .catch(e => {
-          console.error(e);
-          setLoading(false);
-        });
-    };
-
-    fetchData(); // Initial fetch
+    const q = query(collection(db, 'developmentRequests'), orderBy('createdAt', 'desc'));
     
-    // Auto-refresh every 10 seconds to make it a "live" dashboard
-    const intervalId = setInterval(fetchData, 10000);
-    return () => clearInterval(intervalId);
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setRequests(docs);
+      
+      const totalRequests = docs.length;
+      
+      const categoryCounts = docs.reduce((acc: any, req: any) => {
+        if (req.category) acc[req.category] = (acc[req.category] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const priorityCounts = docs.reduce((acc: any, req: any) => {
+        if (req.priority) acc[req.priority] = (acc[req.priority] || 0) + 1;
+        return acc;
+      }, {});
+
+      const chartData = Object.keys(categoryCounts).map(name => ({
+        name,
+        value: categoryCounts[name]
+      }));
+
+      // Only fetch recommendations if we have requests
+      let recommendations = [];
+      if (docs.length > 0) {
+        try {
+          const recentRequests = docs.slice(0, 5).map((r: any) => ({ loc: r.location?.address || 'Unknown', cat: r.category, pri: r.priority }));
+          const res = await fetch('/api/recommendations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categoryCounts, recentRequests })
+          });
+          if (res.ok) {
+            const result = await res.json();
+            recommendations = result.recommendations || [];
+          }
+        } catch (err) {
+          console.error("Failed to fetch recommendations", err);
+        }
+      }
+
+      setData({
+        totalRequests,
+        chartData,
+        priorityCounts,
+        recommendations
+      });
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore snapshot error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)]">
         <Loader2 size={32} className="animate-spin text-blue-600 mb-4" />
-        <p className="text-slate-500 font-medium">Aggregating national infrastructure data...</p>
+        <p className="text-slate-500 font-medium">Loading Live Data...</p>
       </div>
     );
   }
@@ -105,7 +139,7 @@ export function Dashboard() {
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY || 'f4N2cKxH48dlsL409E5g';
 
   return (
-    <div className="p-6 sm:p-8 max-w-[1600px] mx-auto space-y-8">
+    <div className="p-6 sm:p-8 max-w-[1600px] mx-auto space-y-8 relative">
       {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -142,15 +176,16 @@ export function Dashboard() {
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl shadow-sm border border-indigo-100">
           <div className="flex flex-col justify-center h-full">
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Scale & Deployability</p>
+            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Live Sync</p>
             <div className="flex items-center justify-between">
-               <span className="text-sm font-medium text-slate-700">States Reached</span>
-               <span className="text-lg font-bold text-slate-900">7/28</span>
+               <span className="text-sm font-medium text-slate-700">Firestore</span>
+               <span className="text-lg font-bold text-emerald-600 flex items-center gap-1">
+                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Active
+               </span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2">
-              <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: '25%' }}></div>
+              <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '100%' }}></div>
             </div>
-            <p className="text-[10px] text-slate-500 mt-2 text-right">Cloud Run Ready for National Scale</p>
           </div>
         </motion.div>
       </div>
@@ -163,9 +198,8 @@ export function Dashboard() {
           <div className="p-5 border-b border-slate-100 flex justify-between items-center">
             <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <MapPin size={20} className="text-blue-600" />
-              National Demand Hotspots
+              Demand Hotspots
             </h3>
-            <span className="text-xs font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md">Live Data</span>
           </div>
           <div className="flex-1 w-full bg-slate-100 relative z-0">
             <MapContainer 
@@ -175,27 +209,28 @@ export function Dashboard() {
             >
               <TileLayer
                 url={`https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${maptilerApiKey}`}
-                attribution='&copy; <a href="https://www.maptiler.com/">MapTiler</a> &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                attribution='&copy; <a href="https://www.maptiler.com/">MapTiler</a>'
               />
-              {data.requests.map((req: any) => (
+              {requests.filter(r => r.location?.lat && r.location?.lng).map((req: any) => (
                 <Marker 
                   key={req.id} 
-                  position={[req.lat, req.lng]}
+                  position={[req.location.lat, req.location.lng]}
                   icon={createCustomIcon(req.priority)}
                 >
                   <Popup>
                     <div className="text-sm min-w-[150px] max-w-[200px]">
-                      {req.media && req.mediaType === 'image' && (
-                        <img src={req.media} alt="Issue" className="w-full h-24 object-cover rounded-md mb-2" />
+                      {req.media && req.media.length > 0 && req.media[0].type === 'image' && (
+                        <img src={req.media[0].url} alt="Issue" className="w-full h-24 object-cover rounded-md mb-2" />
                       )}
-                      {req.media && req.mediaType === 'video' && (
-                        <div className="w-full h-24 bg-slate-200 rounded-md mb-2 flex items-center justify-center text-slate-500">
-                          <FileText size={20} />
-                        </div>
-                      )}
-                      <p className="font-bold text-slate-900 mb-1">{req.location}</p>
+                      <p className="font-bold text-slate-900 mb-1">{req.location.address || 'Unknown Location'}</p>
                       <p className="text-slate-600 mb-1"><span className="font-medium">Category:</span> {req.category}</p>
                       <p className="text-slate-600"><span className="font-medium">Priority:</span> {req.priority}</p>
+                      <button 
+                        onClick={() => setSelectedRequest(req)}
+                        className="mt-2 text-blue-600 text-xs font-semibold hover:underline"
+                      >
+                        View Details
+                      </button>
                     </div>
                   </Popup>
                 </Marker>
@@ -212,31 +247,31 @@ export function Dashboard() {
                 <CheckCircle size={14} />
                 <span className="text-[10px] font-semibold uppercase tracking-wider">Gemini AI</span>
               </div>
-              <div className="flex items-center gap-1 bg-indigo-950/50 px-2 py-1 rounded border border-indigo-800/50">
-                <Database size={14} />
-                <span className="text-[10px] font-semibold uppercase tracking-wider">Demographics & Indices Linked</span>
-              </div>
             </div>
-            <h3 className="text-xl font-bold">Public Spending Priorities</h3>
-            <p className="text-sm text-slate-400 mt-1">High-priority development projects surfaced by AI</p>
+            <h3 className="text-xl font-bold">Strategic Priorities</h3>
+            <p className="text-sm text-slate-400 mt-1">Data-driven actionable insights</p>
           </div>
           <div className="p-6 flex-1 overflow-y-auto">
-            <ul className="space-y-4">
-              {data.recommendations.map((rec: string, i: number) => (
-                <motion.li 
-                  key={i}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + i * 0.1 }}
-                  className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10"
-                >
-                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 font-bold text-sm">
-                    {i + 1}
-                  </div>
-                  <p className="text-sm text-slate-200 leading-relaxed">{rec}</p>
-                </motion.li>
-              ))}
-            </ul>
+            {data.recommendations && data.recommendations.length > 0 ? (
+              <ul className="space-y-4">
+                {data.recommendations.map((rec: string, i: number) => (
+                  <motion.li 
+                    key={i}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.1 }}
+                    className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10"
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 font-bold text-sm">
+                      {i + 1}
+                    </div>
+                    <p className="text-sm text-slate-200 leading-relaxed">{rec}</p>
+                  </motion.li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-slate-400 text-sm">Not enough data to generate recommendations yet.</p>
+            )}
           </div>
         </div>
       </div>
@@ -290,25 +325,25 @@ export function Dashboard() {
       
       {/* Recent Feed */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-900">Recent Citizen Feedback</h3>
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-slate-900">Recent Citizen Requests</h3>
         </div>
-        <div className="divide-y divide-slate-100">
-          {[...data.requests].reverse().slice(0, 5).map((req: any) => (
-            <div key={req.id} className="p-6 hover:bg-slate-50 transition-colors flex gap-6">
+        <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+          {requests.map((req: any) => (
+            <div key={req.id} onClick={() => setSelectedRequest(req)} className="p-6 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-6 cursor-pointer">
               <div className="hidden sm:block flex-shrink-0">
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
-                  <span className="font-semibold text-slate-500">{req.language.toUpperCase()}</span>
+                  <span className="font-semibold text-slate-500">{req.language?.toUpperCase() || 'EN'}</span>
                 </div>
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-900">{req.location}</span>
+                    <span className="font-medium text-slate-900">{req.location?.address || 'Unknown Location'}</span>
                     <span className="text-slate-300">•</span>
                     <span className="text-sm text-slate-500 flex items-center gap-1">
                       <Clock size={14} /> 
-                      {new Date(req.timestamp).toLocaleDateString()}
+                      {req.createdAt?.seconds ? new Date(req.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -325,50 +360,12 @@ export function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <p className="text-slate-700 text-sm leading-relaxed mb-3">"{req.text}"</p>
-                
-                {req.summary && req.language !== 'en' && (
-                  <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100 mb-3">
-                    <p className="text-xs font-semibold text-blue-800 mb-1 flex items-center gap-1">
-                      <CheckCircle size={12} /> AI Translated Summary
-                    </p>
-                    <p className="text-sm text-blue-900">{req.summary}</p>
-                  </div>
-                )}
-                {req.media && req.mediaType === 'image' && (
-                  <img src={req.media} alt="Attached issue" className="mt-3 mb-3 w-48 h-32 object-cover rounded-lg border border-slate-200" />
-                )}
-                {req.media && req.mediaType === 'video' && (
-                  <video src={req.media} controls className="mt-3 mb-3 w-48 h-32 object-cover rounded-lg border border-slate-200" />
-                )}
-
-                <div className="mt-4 border-t border-slate-100 pt-3">
-                  {!drafts[req.id] ? (
-                    <button 
-                      onClick={() => handleDraftResponse(req.id, req.text, req.category, req.priority, req.location)}
-                      disabled={isDrafting[req.id]}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 disabled:opacity-50"
-                    >
-                      {isDrafting[req.id] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-purple-600" />}
-                      {isDrafting[req.id] ? 'Drafting...' : 'AI Draft Response'}
-                    </button>
-                  ) : (
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 animate-in fade-in slide-in-from-top-2">
-                      <p className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1">
-                        <Sparkles size={12} className="text-purple-600" /> Official AI Drafted Response
-                      </p>
-                      <textarea 
-                        value={drafts[req.id]} 
-                        onChange={(e) => setDrafts(prev => ({...prev, [req.id]: e.target.value}))}
-                        className="w-full text-sm text-slate-800 bg-white border border-slate-200 rounded p-2 resize-none h-24 focus:outline-none focus:ring-1 focus:ring-purple-400"
-                      />
-                      <div className="flex justify-end mt-2">
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700 transition-colors">
-                          <Send size={12} /> Send Response
-                        </button>
-                      </div>
-                    </div>
+                <p className="text-slate-700 text-sm leading-relaxed mb-3 line-clamp-2">"{req.originalText || req.translatedText || 'Media attached without text description.'}"</p>
+                <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
+                  {req.media && req.media.length > 0 && (
+                    <span className="flex items-center gap-1 text-indigo-600"><ImageIcon size={14} /> {req.media.length} Evidence</span>
                   )}
+                  <span className="flex items-center gap-1 text-blue-600">Status: {req.status}</span>
                 </div>
               </div>
             </div>
@@ -376,17 +373,136 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Hackathon Tech Stack Footer */}
-      <div className="pt-8 pb-4 text-center border-t border-slate-200 mt-8">
-        <p className="text-sm text-slate-500 font-medium mb-3">Powered by Hackathon Required Technologies & Alternatives</p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-100">Gemini AI Studio (Generative AI)</span>
-          <span className="px-3 py-1 bg-fuchsia-50 text-fuchsia-700 text-xs font-semibold rounded-full border border-fuchsia-100">Gemini Multimodal Vision</span>
-          <span className="px-3 py-1 bg-sky-50 text-sky-700 text-xs font-semibold rounded-full border border-sky-100">Web Speech API (Voice Alternative)</span>
-          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-100">MapTiler/OSM (Geospatial Alternative)</span>
-          <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200">Cloud Run Deployment</span>
-        </div>
-      </div>
+      {/* Request Details Modal */}
+      <AnimatePresence>
+        {selectedRequest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3">
+                  Request Details
+                  <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
+                    selectedRequest.priority === 'Critical' ? 'bg-red-100 text-red-700 border-red-200' :
+                    selectedRequest.priority === 'High' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                    'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}>
+                    {selectedRequest.priority} Priority
+                  </span>
+                </h2>
+                <button onClick={() => setSelectedRequest(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Left Column */}
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Original Submission ({selectedRequest.language?.toUpperCase() || 'EN'})</h4>
+                      <p className="text-slate-900 p-4 bg-slate-50 rounded-xl border border-slate-200 whitespace-pre-wrap">
+                        "{selectedRequest.originalText || 'No text provided.'}"
+                      </p>
+                    </div>
+
+                    {selectedRequest.language !== 'en' && selectedRequest.translatedText && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-blue-600 flex items-center gap-1 uppercase tracking-wider mb-2">
+                          <CheckCircle size={14} /> English Translation
+                        </h4>
+                        <p className="text-slate-800 p-4 bg-blue-50/50 rounded-xl border border-blue-100 whitespace-pre-wrap">
+                          {selectedRequest.translatedText}
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-purple-600 flex items-center gap-1 uppercase tracking-wider mb-2">
+                        <Sparkles size={14} /> AI Analysis
+                      </h4>
+                      <div className="bg-purple-50/50 rounded-xl border border-purple-100 p-5 space-y-3 text-sm">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div><strong>Category:</strong> {selectedRequest.category}</div>
+                          <div><strong>Severity:</strong> {selectedRequest.severity}</div>
+                          <div><strong>Safety Risk:</strong> {selectedRequest.safetyRisk}</div>
+                          <div><strong>Priority Score:</strong> {selectedRequest.priorityScore}/100</div>
+                        </div>
+                        <div className="pt-3 border-t border-purple-100">
+                          <strong>Core Problem:</strong>
+                          <p className="mt-1">{selectedRequest.problem}</p>
+                        </div>
+                        <div className="pt-3 border-t border-purple-100">
+                          <strong>Recommended Action:</strong>
+                          <p className="mt-1 font-medium text-purple-900">{selectedRequest.recommendedAction}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Citizen Info & Status</h4>
+                      <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-sm">
+                        <p><strong>Name:</strong> {selectedRequest.citizenName || 'Anonymous'}</p>
+                        <p><strong>ID:</strong> <span className="font-mono text-xs bg-slate-200 px-1 py-0.5 rounded">{selectedRequest.citizenId}</span></p>
+                        <p><strong>Location:</strong> {selectedRequest.location?.address || 'GPS Only'}</p>
+                        <p><strong>Submitted:</strong> {selectedRequest.createdAt?.seconds ? new Date(selectedRequest.createdAt.seconds * 1000).toLocaleString() : 'Unknown'}</p>
+                        <div className="flex items-center gap-3 pt-3 border-t border-slate-200">
+                          <strong>Status:</strong>
+                          <select 
+                            value={selectedRequest.status}
+                            onChange={(e) => handleStatusChange(selectedRequest.id, e.target.value)}
+                            className="bg-white border border-slate-300 rounded-md px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-[200px]"
+                          >
+                            <option value="Submitted">Submitted</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="Prioritized">Prioritized</option>
+                            <option value="Planned">Planned</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Evidence ({selectedRequest.media?.length || 0})</h4>
+                      {selectedRequest.media && selectedRequest.media.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          {selectedRequest.media.map((m: any, i: number) => (
+                            <a key={i} href={m.url} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-xl border border-slate-200 aspect-square bg-slate-100">
+                              {m.type === 'image' ? (
+                                <img src={m.url} alt="Evidence" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center w-full h-full text-slate-500">
+                                  <Video size={40} className="mb-2" />
+                                  <span className="text-sm font-medium bg-white/80 px-2 py-1 rounded">Play Video</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                            </a>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-8 bg-slate-50 rounded-xl border border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                          <ImageIcon size={48} className="mb-2 opacity-50" />
+                          <p className="text-sm font-medium">No evidence attached.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

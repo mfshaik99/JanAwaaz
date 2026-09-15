@@ -5,35 +5,66 @@
       "description": "A user of the application, either citizen or admin.",
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 100
-        },
-        "email": {
-          "type": "string",
-          "maxLength": 200
-        },
-        "phone": {
-          "type": "string",
-          "maxLength": 20
-        },
-        "role": {
-          "type": "string",
-          "enum": ["citizen", "admin"]
-        },
-        "createdAt": {
-          "type": "string",
-          "maxLength": 50
-        }
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["citizen", "admin"] },
+        "createdAt": { "type": "string", "maxLength": 50 }
       },
       "required": ["name", "role", "createdAt"]
+    },
+    "DevelopmentRequest": {
+      "title": "Development Request",
+      "description": "A citizen's request for infrastructure/development.",
+      "type": "object",
+      "properties": {
+        "citizenId": { "type": "string", "maxLength": 128 },
+        "citizenName": { "type": "string", "maxLength": 100 },
+        "language": { "type": "string", "maxLength": 10 },
+        "originalText": { "type": "string", "maxLength": 5000 },
+        "translatedText": { "type": "string", "maxLength": 5000 },
+        "category": { "type": "string", "maxLength": 100 },
+        "problem": { "type": "string", "maxLength": 500 },
+        "severity": { "type": "string", "maxLength": 50 },
+        "urgency": { "type": "string", "maxLength": 50 },
+        "safetyRisk": { "type": "string", "maxLength": 50 },
+        "priorityScore": { "type": "number" },
+        "priority": { "type": "string", "maxLength": 50 },
+        "aiSummary": { "type": "string", "maxLength": 1000 },
+        "summary": { "type": "string", "maxLength": 1000 },
+        "recommendedAction": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["Submitted", "Under Review", "Prioritized", "Planned", "In Progress", "Completed"] },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "media": {
+          "type": "array",
+          "items": {
+             "type": "object",
+             "properties": {
+               "type": { "type": "string" },
+               "url": { "type": "string", "maxLength": 1000 },
+               "name": { "type": "string", "maxLength": 200 }
+             }
+          }
+        },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        }
+      },
+      "required": ["citizenId", "status"]
     }
   },
   "firestore": {
     "users/{userId}": {
       "schema": "User",
       "description": "Stores user profiles."
+    },
+    "developmentRequests/{requestId}": {
+      "schema": "DevelopmentRequest",
+      "description": "Stores citizen development requests."
     }
   }
 }
