@@ -1,1 +1,108 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: 'Google Sans', 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+@layer base {
+  a, button {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+  }
+  input, textarea, select {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500;
+  }
+
+  ::selection {
+    background-color: #dbeafe; /* text-blue-100 */
+    color: #1e3a8a; /* text-blue-900 */
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* slate-300 */
+    border-radius: 5px;
+    border: 3px solid #f8fafc; /* slate-50 - creates padding effect */
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* slate-400 */
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+  @font-face {
+    font-family: 'Google Sans';
+    src: local('Google Sans'), local('Product Sans'), url('https://fonts.gstatic.com/s/productsans/v5/HYvgU2fE2nRJvZ5JFAumwegdm0LZdjqr5-oayXSOefg.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Google Sans';
+    src: local('Google Sans Medium'), local('Product Sans Medium'), url('https://fonts.gstatic.com/s/productsans/v5/hx7fvdc2D-AOW_0g_5t08z8cvjkzF32fW2D4wW9rVlI.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Google Sans';
+    src: local('Google Sans Bold'), local('Product Sans Bold'), url('https://fonts.gstatic.com/s/productsans/v5/hx7fvdc2D-AOW_0g_5t088x3iN38K7sB_s-v2L7aO6s.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+  }
+  
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: -0.01em;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .google-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+  }
+  
+  /* Refined, softer Google-style shadows */
+  .google-shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1), 0 2px 6px 2px rgba(60,64,67,0.05);
+  }
+  .google-shadow-md {
+    box-shadow: 0 1px 3px 0 rgba(60,64,67,0.15), 0 4px 8px 3px rgba(60,64,67,0.05);
+  }
+  .google-shadow-lg {
+    box-shadow: 0 2px 6px 0 rgba(60,64,67,0.15), 0 8px 24px 8px rgba(60,64,67,0.1);
+  }
+  
+  .google-transition {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+  
+  .google-transition-fast {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+}
+

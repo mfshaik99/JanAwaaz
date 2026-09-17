@@ -134,67 +134,67 @@ export function Register() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 w-full max-w-md">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">Create Citizen Account</h2>
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-slate-50">
+      <div className="bg-white p-8 rounded-3xl google-shadow-sm border border-slate-200 w-full max-w-md">
+        <h2 className="text-3xl font-bold text-slate-900 mb-6 text-center tracking-tight">Create Citizen Account</h2>
         
-        <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-lg">
+        <div className="flex gap-2 mb-6 bg-slate-100 p-1.5 rounded-xl">
           <button
             onClick={() => setMethod('email')}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${method === 'email' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-lg google-transition-fast ${method === 'email' ? 'bg-white text-blue-600 google-shadow-sm' : 'text-slate-500'}`}
           >
             Email
           </button>
           <button
             onClick={() => setMethod('phone')}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${method === 'phone' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-lg google-transition-fast ${method === 'phone' ? 'bg-white text-blue-600 google-shadow-sm' : 'text-slate-500'}`}
           >
             Phone
           </button>
         </div>
 
         {method === 'email' ? (
-          <form onSubmit={handleEmailRegister} className="space-y-4">
+          <form onSubmit={handleEmailRegister} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-widest">Full Name</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-5 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none google-transition bg-slate-50 focus:bg-white" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-widest">Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-5 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none google-transition bg-slate-50 focus:bg-white" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required minLength={6} />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-widest">Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-5 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none google-transition bg-slate-50 focus:bg-white" required minLength={6} />
             </div>
-            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center">
+            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-full font-bold hover:bg-blue-700 active:scale-[0.98] google-transition-fast flex items-center justify-center mt-2 google-shadow-sm">
               {loading ? <Loader2 size={18} className="animate-spin" /> : 'Register'}
             </button>
           </form>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div id="recaptcha-container"></div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" disabled={!!confirmationResult} />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-widest">Full Name</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-5 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none google-transition bg-slate-50 focus:bg-white" disabled={!!confirmationResult} />
             </div>
             {!confirmationResult ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number (with code)</label>
-                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91..." className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-widest">Phone Number (with code)</label>
+                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91..." className="w-full px-5 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none google-transition bg-slate-50 focus:bg-white" />
                 </div>
-                <button onClick={handleSendOtp} disabled={loading} className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center">
+                <button onClick={handleSendOtp} disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-full font-bold hover:bg-blue-700 active:scale-[0.98] google-transition-fast flex items-center justify-center mt-2 google-shadow-sm">
                   {loading ? <Loader2 size={18} className="animate-spin" /> : 'Send OTP'}
                 </button>
               </>
             ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <form onSubmit={handleVerifyOtp} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Enter OTP</label>
-                  <input type="text" value={otp} onChange={e => setOtp(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-widest">Enter OTP</label>
+                  <input type="text" value={otp} onChange={e => setOtp(e.target.value)} className="w-full px-5 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none google-transition bg-slate-50 focus:bg-white" required />
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center">
+                <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-full font-bold hover:bg-blue-700 active:scale-[0.98] google-transition-fast flex items-center justify-center mt-2 google-shadow-sm">
                   {loading ? <Loader2 size={18} className="animate-spin" /> : 'Verify & Register'}
                 </button>
               </form>
@@ -202,19 +202,19 @@ export function Register() {
           </div>
         )}
 
-        <div className="relative mt-6 mb-6">
+        <div className="relative mt-8 mb-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200"></div>
           </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-slate-500">Or continue with</span>
+          <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold">
+            <span className="px-3 bg-white text-slate-400">Or continue with</span>
           </div>
         </div>
 
         <button 
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-full text-slate-700 font-bold hover:bg-slate-50 active:scale-[0.98] google-transition-fast google-shadow-sm"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

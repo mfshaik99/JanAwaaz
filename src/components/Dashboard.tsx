@@ -13,7 +13,10 @@ import {
   X, Image as ImageIcon, Video
 } from 'lucide-react';
 import { db } from '../firebase';
+import toast from 'react-hot-toast';
 import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+
+
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'];
 const PRIORITY_COLORS: Record<string, string> = {
@@ -22,6 +25,9 @@ const PRIORITY_COLORS: Record<string, string> = {
   High: '#ef4444',
   Critical: '#991b1b'
 };
+
+import { DashboardSkeleton } from './ui/DashboardSkeleton';
+import '../utils/mapUtils';
 
 export function Dashboard() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -38,7 +44,7 @@ export function Dashboard() {
       }
     } catch (e) {
       console.error('Error updating status', e);
-      alert('Failed to update status');
+      toast.error('Failed to update status');
     }
   };
 
@@ -126,10 +132,7 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)]">
-        <Loader2 size={32} className="animate-spin text-blue-600 mb-4" />
-        <p className="text-slate-500 font-medium">Loading Live Data...</p>
-      </div>
+      <DashboardSkeleton />
     );
   }
 
@@ -139,51 +142,52 @@ export function Dashboard() {
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY || 'f4N2cKxH48dlsL409E5g';
 
   return (
-    <div className="p-6 sm:p-8 max-w-[1600px] mx-auto space-y-8 relative">
+    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6 relative">
+      
       {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><FileText size={24} /></div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-6 rounded-3xl google-shadow-sm border border-slate-200 hover:google-shadow-md google-transition-fast" transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100"><FileText size={28} /></div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Total Requests</p>
-              <h3 className="text-3xl font-bold text-slate-900">{data.totalRequests}</h3>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Requests</p>
+              <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{data.totalRequests}</h3>
             </div>
           </div>
         </motion.div>
         
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-100 text-red-600 rounded-xl"><AlertTriangle size={24} /></div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, ease: [0.4, 0, 0.2, 1] }} className="bg-white p-4 sm:p-6 rounded-3xl google-shadow-sm border border-slate-200 hover:google-shadow-md google-transition-fast">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100"><AlertTriangle size={28} /></div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Critical Priority</p>
-              <h3 className="text-3xl font-bold text-slate-900">{data.priorityCounts['Critical'] || 0}</h3>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Critical Priority</p>
+              <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{data.priorityCounts['Critical'] || 0}</h3>
             </div>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><TrendingUp size={24} /></div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, ease: [0.4, 0, 0.2, 1] }} className="bg-white p-4 sm:p-6 rounded-3xl google-shadow-sm border border-slate-200 hover:google-shadow-md google-transition-fast">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100"><TrendingUp size={28} /></div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Top Category</p>
-              <h3 className="text-xl font-bold text-slate-900 truncate">
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Top Category</p>
+              <h3 className="text-xl font-bold text-slate-900 truncate tracking-tight">
                 {data.chartData?.sort((a: any, b: any) => b.value - a.value)[0]?.name || 'N/A'}
               </h3>
             </div>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl shadow-sm border border-indigo-100">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, ease: [0.4, 0, 0.2, 1] }} className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-3xl google-shadow-sm border border-indigo-100">
           <div className="flex flex-col justify-center h-full">
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">Live Sync</p>
+            <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-2">Live Sync</p>
             <div className="flex items-center justify-between">
-               <span className="text-sm font-medium text-slate-700">Firestore</span>
-               <span className="text-lg font-bold text-emerald-600 flex items-center gap-1">
-                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Active
+               <span className="text-sm font-semibold text-slate-700">Firestore</span>
+               <span className="text-lg font-bold text-emerald-600 flex items-center gap-2">
+                 <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse google-shadow-sm shadow-emerald-500/50"></div> Active
                </span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2">
+            <div className="w-full bg-slate-200/50 rounded-full h-1.5 mt-4">
               <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '100%' }}></div>
             </div>
           </div>
@@ -191,13 +195,15 @@ export function Dashboard() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         
         {/* Map Section */}
-        <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-          <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <MapPin size={20} className="text-blue-600" />
+        <div className="xl:col-span-2 bg-white rounded-3xl google-shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+          <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
+                <MapPin size={22} />
+              </div>
               Demand Hotspots
             </h3>
           </div>
@@ -240,7 +246,7 @@ export function Dashboard() {
         </div>
 
         {/* AI Recommendations */}
-        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-2xl shadow-sm border border-slate-800 text-white overflow-hidden flex flex-col h-[500px]">
+        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-2xl google-shadow-sm border border-slate-800 text-white overflow-hidden flex flex-col h-[500px]">
           <div className="p-6 border-b border-white/10">
             <div className="flex flex-wrap items-center gap-2 text-indigo-300 mb-2">
               <div className="flex items-center gap-1 bg-indigo-950/50 px-2 py-1 rounded border border-indigo-800/50">
@@ -259,7 +265,7 @@ export function Dashboard() {
                     key={i}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.1 }}
+                    transition={{ delay: 0.3 + i * 0.1, ease: [0.4, 0, 0.2, 1] }}
                     className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10"
                   >
                     <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300 font-bold text-sm">
@@ -277,11 +283,11 @@ export function Dashboard() {
       </div>
 
       {/* Charts & List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
         {/* Category Breakdown */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-[400px] flex flex-col">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">Requests by Category</h3>
+        <div className="bg-white rounded-2xl google-shadow-sm border border-slate-200 p-6 h-[350px] flex flex-col">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Requests by Category</h3>
           <div className="flex-1 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.chartData} layout="vertical" margin={{ top: 0, right: 0, left: 40, bottom: 0 }}>
@@ -296,8 +302,8 @@ export function Dashboard() {
         </div>
 
         {/* Priority Distribution */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-[400px] flex flex-col">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">Priority Distribution</h3>
+        <div className="bg-white rounded-3xl google-shadow-sm border border-slate-200 p-6 h-[350px] flex flex-col">
+          <h3 className="text-xl font-bold text-slate-900 mb-4 tracking-tight">Priority Distribution</h3>
           <div className="flex-1 w-full flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -314,7 +320,7 @@ export function Dashboard() {
                     <Cell key={`cell-${index}`} fill={PRIORITY_COLORS[entry.name as string] || COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <RechartsTooltip contentStyle={{borderRadius: '8px', border: '1px solid #e2e8f0'}} />
+                <RechartsTooltip contentStyle={{borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                 <Legend verticalAlign="bottom" height={36} iconType="circle" />
               </PieChart>
             </ResponsiveContainer>
@@ -324,33 +330,33 @@ export function Dashboard() {
       </div>
       
       {/* Recent Feed */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-slate-900">Recent Citizen Requests</h3>
+      <div className="bg-white rounded-3xl google-shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <h3 className="text-xl font-bold text-slate-900 tracking-tight">Recent Citizen Requests</h3>
         </div>
-        <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+        <div className="divide-y divide-slate-100 max-h-[350px] overflow-y-auto">
           {requests.map((req: any) => (
-            <div key={req.id} onClick={() => setSelectedRequest(req)} className="p-6 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-6 cursor-pointer">
+            <div key={req.id} onClick={() => setSelectedRequest(req)} className="p-4 sm:p-6 hover:bg-slate-50 google-transition-fast flex flex-col sm:flex-row gap-4 cursor-pointer">
               <div className="hidden sm:block flex-shrink-0">
-                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
-                  <span className="font-semibold text-slate-500">{req.language?.toUpperCase() || 'EN'}</span>
+                <div className="w-14 h-14 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center">
+                  <span className="font-bold text-blue-600">{req.language?.toUpperCase() || 'EN'}</span>
                 </div>
               </div>
               <div className="flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-900">{req.location?.address || 'Unknown Location'}</span>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-slate-900">{req.location?.address || 'Unknown Location'}</span>
                     <span className="text-slate-300">•</span>
-                    <span className="text-sm text-slate-500 flex items-center gap-1">
+                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 uppercase tracking-wider">
                       <Clock size={14} /> 
                       {req.createdAt?.seconds ? new Date(req.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
                     </span>
                   </div>
-                  <div className="flex gap-2">
-                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
+                  <div className="flex gap-2 text-[11px] font-bold uppercase tracking-wider">
+                    <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-full border border-slate-200">
                       {req.category}
                     </span>
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
+                    <span className={`px-3 py-1.5 rounded-full border ${
                       req.priority === 'Critical' ? 'bg-red-50 text-red-700 border-red-200' :
                       req.priority === 'High' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                       req.priority === 'Medium' ? 'bg-amber-50 text-amber-700 border-amber-200' :
@@ -360,12 +366,12 @@ export function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <p className="text-slate-700 text-sm leading-relaxed mb-3 line-clamp-2">"{req.originalText || req.translatedText || 'Media attached without text description.'}"</p>
-                <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
+                <p className="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-2">"{req.originalText || req.translatedText || 'Media attached without text description.'}"</p>
+                <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   {req.media && req.media.length > 0 && (
-                    <span className="flex items-center gap-1 text-indigo-600"><ImageIcon size={14} /> {req.media.length} Evidence</span>
+                    <span className="flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100"><ImageIcon size={14} /> {req.media.length} Evidence</span>
                   )}
-                  <span className="flex items-center gap-1 text-blue-600">Status: {req.status}</span>
+                  <span className="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Status: {req.status}</span>
                 </div>
               </div>
             </div>
@@ -382,7 +388,7 @@ export function Dashboard() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-            >
+             transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3">
                   Request Details
@@ -394,13 +400,13 @@ export function Dashboard() {
                     {selectedRequest.priority} Priority
                   </span>
                 </h2>
-                <button onClick={() => setSelectedRequest(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                <button onClick={() => setSelectedRequest(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 google-transition-fast">
                   <X size={20} />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Left Column */}
                   <div className="space-y-6">
                     <div>
@@ -485,12 +491,12 @@ export function Dashboard() {
                                   <span className="text-sm font-medium bg-white/80 px-2 py-1 rounded">Play Video</span>
                                 </div>
                               )}
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 google-transition-fast"></div>
                             </a>
                           ))}
                         </div>
                       ) : (
-                        <div className="p-8 bg-slate-50 rounded-xl border border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                        <div className="p-6 bg-slate-50 rounded-xl border border-slate-200 flex flex-col items-center justify-center text-slate-400">
                           <ImageIcon size={48} className="mb-2 opacity-50" />
                           <p className="text-sm font-medium">No evidence attached.</p>
                         </div>

@@ -10,6 +10,18 @@ import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { Loader2, AlertCircle } from 'lucide-react';
 
+
+const PageSkeleton = () => (
+  <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6 animate-pulse">
+    <div className="h-40 bg-slate-100 rounded-3xl border border-slate-200/50"></div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="col-span-2 h-96 bg-slate-100 rounded-3xl border border-slate-200/50"></div>
+      <div className="h-96 bg-slate-100 rounded-3xl border border-slate-200/50"></div>
+    </div>
+  </div>
+);
+
+
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
@@ -25,18 +37,18 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
     }
   }, [loading, user, profile, navigate]);
 
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (loading) return <PageSkeleton />;
   if (!user) return <Navigate to="/login" />;
   
   if (showError) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center h-[60vh] animate-in fade-in zoom-in duration-300">
-        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-6">
-          <AlertCircle size={32} />
+      <div className="flex flex-col items-center justify-center p-8 text-center h-[50vh] animate-in fade-in zoom-in duration-300">
+        <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mb-6 google-shadow-sm border border-red-100">
+          <AlertCircle size={36} />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h2>
-        <p className="text-slate-600 mb-6 text-lg">You are not authorized to access the JanAwaaz Policymaker Dashboard.</p>
-        <p className="text-sm text-slate-400">Redirecting you back to the Citizen Portal...</p>
+        <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">Access Denied</h2>
+        <p className="text-slate-600 mb-6 text-lg max-w-md">You are not authorized to access the JanAwaaz Policymaker Dashboard.</p>
+        <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest">Redirecting you to Portal...</p>
       </div>
     );
   }
@@ -50,7 +62,7 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
 
 function ProtectedCitizenRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (loading) return <PageSkeleton />;
   if (!user) return <Navigate to="/login" />;
   return <>{children}</>;
 }

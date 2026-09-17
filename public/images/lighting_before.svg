@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  
+  <!-- Night Sky -->
+  <rect x="0" y="0" width="800" height="450" fill="#0B1021"/>
+  <!-- Moon -->
+  <circle cx="700" cy="80" r="30" fill="#F0F8FF" opacity="0.8"/>
+  <!-- City Skyline Silhouette -->
+  <rect x="50" y="200" width="100" height="250" fill="#151B2E"/>
+  <rect x="150" y="150" width="120" height="300" fill="#1A2238"/>
+  <rect x="270" y="250" width="80" height="200" fill="#151B2E"/>
+  <rect x="450" y="100" width="150" height="350" fill="#1A2238"/>
+  <rect x="600" y="180" width="120" height="270" fill="#151B2E"/>
+  <!-- Street -->
+  <rect x="0" y="450" width="800" height="150" fill="#0A0D17"/>
+  <!-- Light Poles -->
+  <rect x="200" y="250" width="10" height="200" fill="#2C354A"/>
+  <path d="M200,250 L250,230 L250,240 L210,255 Z" fill="#2C354A"/>
+  <rect x="550" y="200" width="12" height="250" fill="#2C354A"/>
+  <path d="M550,200 L610,175 L610,187 L562,207 Z" fill="#2C354A"/>
+
+  <!-- Broken light fixtures -->
+  <ellipse cx="245" cy="235" rx="10" ry="5" fill="#151B2E"/>
+  <ellipse cx="605" cy="182" rx="12" ry="6" fill="#151B2E"/>
+  <!-- Very dark overlay to simulate darkness -->
+  <rect x="0" y="0" width="800" height="600" fill="#000000" opacity="0.6"/>
+</svg>

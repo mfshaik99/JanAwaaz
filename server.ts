@@ -56,16 +56,17 @@ app.post('/api/analyze', async (req, res) => {
         priorityScore: { type: Type.NUMBER, description: "Priority score from 0 to 100" },
         priority: { type: Type.STRING, description: "Overall priority (Low, Medium, High, Critical)" },
         summary: { type: Type.STRING, description: "A 1-sentence English summary" },
+        aiSummary: { type: Type.STRING, description: "A simple 1-3 sentence citizen-friendly explanation of the request in the original language." },
         recommendedAction: { type: Type.STRING, description: "Recommended development action for policymakers" },
         translatedText: { type: Type.STRING, description: "Full English translation of the request if not in English, otherwise same as original" }
       },
-      required: ["location", "lat", "lng", "category", "problem", "severity", "urgency", "safetyRisk", "priorityScore", "priority", "summary", "recommendedAction", "translatedText"]
+      required: ["location", "lat", "lng", "category", "problem", "severity", "urgency", "safetyRisk", "priorityScore", "priority", "summary", "aiSummary", "recommendedAction", "translatedText"]
     };
 
     let response;
     try {
       response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: parts,
         config: {
           responseMimeType: "application/json",
@@ -75,7 +76,7 @@ app.post('/api/analyze', async (req, res) => {
     } catch (apiError: any) {
       if (apiError?.status === 503 || apiError?.status === 429) {
         response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: "gemini-2.5-flash",
           contents: parts,
           config: {
             responseMimeType: "application/json",
@@ -111,14 +112,14 @@ app.post('/api/enhance', async (req, res) => {
     let response;
     try {
       response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: `You are a helpful AI assistant for Indian citizens. Rewrite the following citizen grievance/request to be clear, detailed, formal, and highly actionable for government policymakers. Do not change the original intent. If the original text is in English, write in English. If it is in another language, write in that language.\n\nOriginal Text: "${text}"`,
       });
     } catch (apiError: any) {
       if (apiError?.status === 503 || apiError?.status === 429) {
         console.warn(`Gemini API ${apiError.status}, retrying with flash-lite...`);
         response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: "gemini-2.5-flash",
           contents: `You are a helpful AI assistant for Indian citizens. Rewrite the following citizen grievance/request to be clear, detailed, formal, and highly actionable for government policymakers. Do not change the original intent. If the original text is in English, write in English. If it is in another language, write in that language.\n\nOriginal Text: "${text}"`,
         });
       } else {
@@ -150,14 +151,14 @@ Draft a short, empathetic, and professional official response (max 3-4 sentences
     let response;
     try {
       response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
       });
     } catch (apiError: any) {
       if (apiError?.status === 503 || apiError?.status === 429) {
         console.warn(`Gemini API ${apiError.status}, retrying with flash-lite...`);
         response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: "gemini-2.5-flash",
           contents: prompt,
         });
       } else {
@@ -196,7 +197,7 @@ Provide 3 short, actionable, data-driven recommendations for high-priority devel
     let aiInsightResponse;
     try {
       aiInsightResponse = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: systemPrompt,
         config: {
           responseMimeType: "application/json",
@@ -206,7 +207,7 @@ Provide 3 short, actionable, data-driven recommendations for high-priority devel
     } catch (apiError: any) {
       if (apiError?.status === 503 || apiError?.status === 429) {
         aiInsightResponse = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: "gemini-2.5-flash",
           contents: systemPrompt,
           config: {
             responseMimeType: "application/json",

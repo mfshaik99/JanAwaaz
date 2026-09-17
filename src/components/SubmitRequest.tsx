@@ -2,21 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Mic, Send, AlertCircle, CheckCircle2, Loader2, Globe, MapPin, Navigation, Camera, X, Image as ImageIcon, Video, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 import { db, storage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-interface MediaItem {
-  file: File;
-  type: 'image' | 'video';
-  previewUrl: string;
-}
+
 
 export function SubmitRequest() {
   const { user, profile } = useAuth();
   const [text, setText] = useState('');
   const [language, setLanguage] = useState('en');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isRecording, setIsRecording] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -55,7 +53,7 @@ export function SubmitRequest() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.size > 50 * 1024 * 1024) {
-        alert("A file is too large. Max 50MB per file.");
+        toast.error("A file is too large. Max 50MB per file.");
         continue;
       }
       const type = file.type.startsWith('video/') ? 'video' : 'image';
@@ -88,7 +86,7 @@ export function SubmitRequest() {
       setText(data.enhancedText);
     } catch (error) {
       console.error(error);
-      alert('Failed to enhance text with AI.');
+      toast.error('Failed to enhance text with AI.');
     } finally {
       setIsEnhancing(false);
     }
@@ -98,7 +96,7 @@ export function SubmitRequest() {
     e.preventDefault();
     if (!text.trim() && mediaList.length === 0) return;
     if (!user) {
-      alert("You must be logged in to submit a request.");
+      toast.error("You must be logged in to submit a request.");
       return;
     }
 
@@ -133,21 +131,32 @@ export function SubmitRequest() {
       }
 
       // 2. Call AI Analysis
+      setIsGeneratingSummary(true);
       const payload: any = { text, language, imageBase64: firstImageBase64 };
       if (location) {
         payload.lat = location.lat;
         payload.lng = location.lng;
       }
 
-      const aiResponse = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      let aiData = {};
+      try {
+        const aiResponse = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (aiResponse.ok) {
+          aiData = await aiResponse.json();
+        } else {
+          console.warn('AI analysis failed, proceeding without AI data');
+          aiData = { aiSummary: 'AI summary temporarily unavailable.' };
+        }
+      } catch (err) {
+        console.warn('AI analysis error, proceeding without AI data', err);
+        aiData = { aiSummary: 'AI summary temporarily unavailable.' };
+      }
 
-      if (!aiResponse.ok) throw new Error('Failed to analyze request');
-      const aiData = await aiResponse.json();
-
+      setIsGeneratingSummary(false);
       // 3. Save to Firestore
       await addDoc(collection(db, 'developmentRequests'), {
         citizenId: user.uid,
@@ -172,13 +181,14 @@ export function SubmitRequest() {
       setStatus('error');
     } finally {
       setIsSubmitting(false);
+      setIsGeneratingSummary(false);
     }
   };
 
   const startVoiceRecording = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please type your request.');
+      toast.error('Speech recognition is not supported in this browser. Please type your request.');
       return;
     }
 
@@ -219,27 +229,27 @@ export function SubmitRequest() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6">
+    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
-      >
-        <div className="p-8 border-b border-slate-100 bg-slate-50/50">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Report a Community Issue</h2>
-          <p className="text-slate-600">Your voice helps prioritize infrastructure development in your region. Tell us what your community needs.</p>
+        className="bg-white rounded-[2.5rem] google-shadow-sm border border-slate-200 overflow-hidden"
+       transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
+        <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/50">
+          <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">Report a Community Issue</h2>
+          <p className="text-slate-600 text-lg">Your voice helps prioritize infrastructure development in your region. Tell us what your community needs.</p>
         </div>
 
-        <div className="p-8">
+        <div className="p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex justify-between items-center">
-              <label className="block text-sm font-medium text-slate-700">Select Language</label>
-              <div className="flex items-center gap-2 text-slate-500 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
-                <Globe size={16} />
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <label className="block text-sm font-semibold text-slate-900 uppercase tracking-wider">Select Language</label>
+              <div className="flex items-center gap-2 text-slate-600 bg-slate-50 px-4 py-2 rounded-full border border-slate-200 google-transition-fast hover:border-slate-300">
+                <Globe size={18} className="text-slate-400" />
                 <select 
                   value={language} 
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="bg-transparent text-sm focus:outline-none focus:ring-0 font-medium"
+                  className="bg-transparent text-sm focus:outline-none focus:ring-0 font-medium cursor-pointer"
                 >
                   <option value="en">English</option>
                   <option value="hi">हिंदी (Hindi)</option>
@@ -251,7 +261,7 @@ export function SubmitRequest() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-900 uppercase tracking-wider mb-3">
                 Describe the issue or request
               </label>
 
@@ -260,55 +270,55 @@ export function SubmitRequest() {
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="E.g., The main road in our village is broken..."
-                  rows={5}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-slate-700 placeholder:text-slate-400"
+                  rows={6}
+                  className="w-full px-5 py-4 rounded-3xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 google-transition resize-none text-slate-800 text-lg placeholder:text-slate-400 bg-slate-50 hover:bg-white"
                 />
                 <button
                   type="button"
                   onClick={startVoiceRecording}
-                  className={`absolute bottom-4 right-4 p-3 rounded-full transition-all ${
+                  className={`absolute bottom-5 right-5 p-3.5 rounded-full google-transition google-shadow-sm ${
                     isRecording 
-                      ? 'bg-red-100 text-red-600 animate-pulse' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-red-100 text-red-600 animate-pulse border border-red-200' 
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
                   }`}
                   title={isRecording ? "Listening..." : "Speak your request"}
                 >
-                  <Mic size={20} />
+                  <Mic size={22} />
                 </button>
               </div>
 
-              <div className="mt-3 flex items-center justify-between flex-wrap gap-3">
-                <p className="text-xs text-slate-500 max-w-sm w-full md:w-auto">
+              <div className="mt-4 flex items-center justify-between flex-wrap gap-4">
+                <p className="text-sm text-slate-500 max-w-md w-full md:w-auto leading-relaxed">
                   You can type in your local language or use the microphone to speak. Our AI will automatically translate and analyze your request.
                 </p>
                 <button
                   type="button"
                   onClick={handleEnhanceWithAI}
                   disabled={isEnhancing || !text.trim()}
-                  className="flex w-full sm:w-auto justify-center items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 disabled:opacity-50"
+                  className="flex w-full sm:w-auto justify-center items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold google-transition bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 disabled:opacity-50"
                 >
-                  {isEnhancing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {isEnhancing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
                   <span>Enhance with AI</span>
                 </button>
               </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-6">
-              <label className="block text-sm font-semibold text-slate-900 mb-3">Add Evidence (Optional)</label>
+            <div className="border-t border-slate-100 pt-8">
+              <label className="block text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4">Add Evidence (Optional)</label>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <label className="flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors text-sm font-medium">
-                  <Camera size={24} className="text-blue-500" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <label className="flex flex-col items-center justify-center gap-3 px-4 py-6 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer google-transition-fast text-sm font-medium">
+                  <Camera size={26} className="text-blue-500" />
                   <span>Take Photo</span>
                   <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFileChange} />
                 </label>
-                <label className="flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors text-sm font-medium">
-                  <Video size={24} className="text-red-500" />
+                <label className="flex flex-col items-center justify-center gap-3 px-4 py-6 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer google-transition-fast text-sm font-medium">
+                  <Video size={26} className="text-red-500" />
                   <span>Record Video</span>
                   <input type="file" accept="video/*" capture="environment" multiple className="hidden" onChange={handleFileChange} />
                 </label>
-                <label className="flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors text-sm font-medium">
-                  <ImageIcon size={24} className="text-indigo-500" />
+                <label className="flex flex-col items-center justify-center gap-3 px-4 py-6 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer google-transition-fast text-sm font-medium">
+                  <ImageIcon size={26} className="text-indigo-500" />
                   <span>Gallery</span>
                   <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileChange} />
                 </label>
@@ -329,7 +339,7 @@ export function SubmitRequest() {
                       <button
                         type="button"
                         onClick={() => removeMedia(index)}
-                        className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 text-white rounded-full backdrop-blur-sm transition-colors shadow-sm"
+                        className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 text-white rounded-full backdrop-blur-sm google-transition-fast google-shadow-sm"
                         title="Remove evidence"
                       >
                         <X size={14} />
@@ -340,18 +350,18 @@ export function SubmitRequest() {
               )}
             </div>
 
-            <div className="border-t border-slate-100 pt-6">
-              <label className="block text-sm font-semibold text-slate-900 mb-3">Location</label>
+            <div className="border-t border-slate-100 pt-8">
+              <label className="block text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4">Location</label>
               <button
                 type="button"
                 onClick={getLocation}
                 disabled={locationStatus === 'locating'}
-                className={`w-full sm:w-auto flex justify-center items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                className={`w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3.5 rounded-full text-sm font-bold google-transition google-shadow-sm ${
                   locationStatus === 'success' 
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     : locationStatus === 'error'
-                    ? 'bg-red-50 text-red-700 border border-red-200 shadow-sm'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm'
+                    ? 'bg-red-50 text-red-700 border border-red-200'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:scale-[0.98]'
                 }`}
               >
                 {locationStatus === 'locating' ? <Loader2 size={16} className="animate-spin" /> : 
@@ -364,7 +374,7 @@ export function SubmitRequest() {
               </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-8 border-t border-slate-100 gap-6">
               <AnimatePresence>
                 {status === 'success' && (
                   <motion.div 
@@ -372,7 +382,7 @@ export function SubmitRequest() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
                     className="flex items-center text-emerald-600 text-sm font-medium"
-                  >
+                   transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
                     <CheckCircle2 size={18} className="mr-2" />
                     Request submitted successfully!
                   </motion.div>
@@ -383,7 +393,7 @@ export function SubmitRequest() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
                     className="flex items-center text-red-600 text-sm font-medium"
-                  >
+                   transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
                     <AlertCircle size={18} className="mr-2" />
                     Failed to submit. Please try again.
                   </motion.div>
@@ -393,12 +403,12 @@ export function SubmitRequest() {
               <button
                 type="submit"
                 disabled={isSubmitting || (!text.trim() && mediaList.length === 0)}
-                className="w-full sm:w-auto sm:ml-auto flex justify-center items-center px-8 py-3 sm:px-6 sm:py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-full sm:w-auto sm:ml-auto flex justify-center items-center px-10 py-3.5 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed google-transition google-shadow-sm"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 size={18} className="mr-2 animate-spin" />
-                    Processing...
+                    {isGeneratingSummary ? '✨ Generating summary...' : 'Processing...'}
                   </>
                 ) : (
                   <>

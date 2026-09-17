@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  
+  <!-- Sky -->
+  <rect x="0" y="0" width="800" height="400" fill="#87CEEB"/>
+  <!-- Sun -->
+  <circle cx="700" cy="80" r="40" fill="#FFD700"/>
+  <!-- Mountains/Hills -->
+  <path d="M0,400 L200,200 L450,400 Z" fill="#2E8B57"/>
+  <path d="M300,400 L550,150 L800,400 Z" fill="#3CB371"/>
+  <!-- Buildings -->
+  <rect x="50" y="250" width="120" height="150" fill="#D3D3D3"/>
+  <rect x="70" y="280" width="30" height="40" fill="#87CEFA"/>
+  <rect x="110" y="280" width="30" height="40" fill="#87CEFA"/>
+  <rect x="650" y="200" width="100" height="200" fill="#F5F5DC"/>
+  <rect x="670" y="230" width="60" height="30" fill="#87CEFA"/>
+  <!-- Trees -->
+  <circle cx="250" cy="300" r="50" fill="#006400"/>
+  <rect x="240" y="350" width="20" height="50" fill="#8B4513"/>
+  <!-- Ground/Sidewalk -->
+  <rect x="0" y="380" width="800" height="20" fill="#A9A9A9"/>
+
+  <!-- Damaged Road -->
+  <path d="M0,400 L800,400 L800,600 L0,600 Z" fill="#696969"/>
+  <!-- Potholes -->
+  <ellipse cx="300" cy="480" rx="60" ry="20" fill="#303030"/>
+  <ellipse cx="320" cy="485" rx="20" ry="10" fill="#1C1C1C"/>
+  <ellipse cx="500" cy="540" rx="80" ry="25" fill="#303030"/>
+  <ellipse cx="480" cy="545" rx="30" ry="15" fill="#1C1C1C"/>
+  <ellipse cx="150" cy="430" rx="40" ry="12" fill="#303030"/>
+  <!-- Cracks -->
+  <path d="M280,480 L200,520 L150,510" stroke="#1C1C1C" stroke-width="3" fill="none"/>
+  <path d="M520,540 L650,490 L700,500" stroke="#1C1C1C" stroke-width="4" fill="none"/>
+</svg>

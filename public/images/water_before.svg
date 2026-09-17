@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  
+  <!-- Sky -->
+  <rect x="0" y="0" width="800" height="300" fill="#E0F7FA"/>
+  <!-- Trees behind -->
+  <circle cx="150" cy="200" r="100" fill="#4CAF50"/>
+  <circle cx="250" cy="180" r="120" fill="#388E3C"/>
+  <circle cx="650" cy="220" r="90" fill="#4CAF50"/>
+  <!-- Ground -->
+  <rect x="0" y="300" width="800" height="300" fill="#8D6E63"/>
+  <path d="M0,320 Q400,280 800,320 L800,600 L0,600 Z" fill="#A1887F"/>
+  <!-- Concrete Platform -->
+  <rect x="250" y="380" width="300" height="40" fill="#B0BEC5"/>
+  <polygon points="230,420 570,420 600,480 200,480" fill="#90A4AE"/>
+  <!-- Main Water Tank / Structure -->
+  <rect x="320" y="150" width="160" height="230" fill="#CFD8DC"/>
+  <path d="M320,150 L400,100 L480,150 Z" fill="#78909C"/>
+
+  <!-- Cracks in tank -->
+  <path d="M360,180 L380,220 L350,250 L390,290" stroke="#546E7A" stroke-width="3" fill="none"/>
+  <!-- Broken tap -->
+  <rect x="390" y="320" width="20" height="10" fill="#607D8B"/>
+  <path d="M410,320 L420,340" stroke="#607D8B" stroke-width="8" stroke-linecap="round"/>
+  <!-- Rust/Stains -->
+  <path d="M390,330 Q400,370 410,380" stroke="#795548" stroke-width="15" opacity="0.4" fill="none"/>
+  <!-- Mud puddle -->
+  <ellipse cx="400" cy="460" rx="90" ry="25" fill="#5D4037"/>
+  <ellipse cx="430" cy="465" rx="40" ry="15" fill="#4E342E"/>
+</svg>

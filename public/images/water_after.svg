@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  
+  <!-- Sky -->
+  <rect x="0" y="0" width="800" height="300" fill="#E0F7FA"/>
+  <!-- Trees behind -->
+  <circle cx="150" cy="200" r="100" fill="#4CAF50"/>
+  <circle cx="250" cy="180" r="120" fill="#388E3C"/>
+  <circle cx="650" cy="220" r="90" fill="#4CAF50"/>
+  <!-- Ground -->
+  <rect x="0" y="300" width="800" height="300" fill="#8D6E63"/>
+  <path d="M0,320 Q400,280 800,320 L800,600 L0,600 Z" fill="#A1887F"/>
+  <!-- Concrete Platform -->
+  <rect x="250" y="380" width="300" height="40" fill="#B0BEC5"/>
+  <polygon points="230,420 570,420 600,480 200,480" fill="#90A4AE"/>
+  <!-- Main Water Tank / Structure -->
+  <rect x="320" y="150" width="160" height="230" fill="#CFD8DC"/>
+  <path d="M320,150 L400,100 L480,150 Z" fill="#78909C"/>
+
+  <!-- New Tap -->
+  <rect x="390" y="320" width="30" height="12" fill="#E0E0E0"/>
+  <rect x="410" y="332" width="10" height="15" fill="#E0E0E0"/>
+  <!-- Clean Flowing Water -->
+  <path d="M415,347 C415,380 410,400 415,430" stroke="#29B6F6" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <!-- Clean grate/drain -->
+  <rect x="370" y="440" width="60" height="15" fill="#455A64"/>
+  <rect x="375" y="442" width="50" height="2" fill="#263238"/>
+  <rect x="375" y="447" width="50" height="2" fill="#263238"/>
+  <rect x="375" y="452" width="50" height="2" fill="#263238"/>
+  <!-- Small fresh puddle reflecting water -->
+  <ellipse cx="400" cy="465" rx="30" ry="8" fill="#81D4FA" opacity="0.6"/>
+</svg>
