@@ -50,8 +50,7 @@ service cloud.firestore {
     }
 
     match /developmentRequests/{requestId} {
-      allow read: if isSignedIn() && (request.auth.uid == resource.data.citizenId || isAuthorizedAdminEmail());
-      allow list: if isSignedIn() && (request.auth.uid == resource.data.citizenId || isAuthorizedAdminEmail());
+      allow read, list: if true;
       
       allow create: if isSignedIn() && 
                     isValidId(requestId) &&

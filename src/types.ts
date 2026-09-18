@@ -6,7 +6,8 @@ export interface UserProfile {
 
 export interface MediaItem {
   file: File;
-  preview: string;
+  preview?: string;
+  previewUrl?: string;
   type: 'image' | 'video';
 }
 

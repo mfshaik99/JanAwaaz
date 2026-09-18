@@ -1,0 +1,222 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <defs>
+    <!-- Sky & Sun Gradient -->
+    <linearGradient id="waterSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="60%" stop-color="#bae6fd"/>
+      <stop offset="100%" stop-color="#f0f9ff"/>
+    </linearGradient>
+
+    <!-- Terracotta Roof Shingles 3D -->
+    <linearGradient id="terracottaRoof" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="60%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#7c2d12"/>
+    </linearGradient>
+
+    <!-- Wall & Pillar Gradients -->
+    <linearGradient id="pillarGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="40%" stop-color="#ffffff"/>
+      <stop offset="80%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="tileWall" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+
+    <!-- Platform Concrete -->
+    <linearGradient id="platTop" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+    <linearGradient id="platFace" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+
+    <!-- Rusty Damaged Pipe (Before) -->
+    <linearGradient id="rustPipe" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#92400e"/>
+      <stop offset="35%" stop-color="#b45309"/>
+      <stop offset="70%" stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </linearGradient>
+
+    <!-- Foliage Gradients -->
+    <linearGradient id="treeGreen1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="70%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#14532d"/>
+    </linearGradient>
+    <linearGradient id="treeGreen2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#86efac"/>
+      <stop offset="70%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#15803d"/>
+    </linearGradient>
+
+    <!-- Soft Shadow Filter -->
+    <filter id="softShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Sky Background -->
+  <rect width="1200" height="800" fill="url(#waterSky)"/>
+  
+  <!-- Soft Clouds -->
+  <g fill="#ffffff" opacity="0.9" filter="url(#softShadow)">
+    <circle cx="200" cy="110" r="45"/>
+    <circle cx="250" cy="95" r="55"/>
+    <circle cx="305" cy="105" r="40"/>
+    <rect x="190" y="115" width="130" height="35" rx="15"/>
+    <circle cx="980" cy="120" r="40"/>
+    <circle cx="1030" cy="105" r="55"/>
+    <circle cx="1080" cy="115" r="40"/>
+    <rect x="970" y="125" width="120" height="30" rx="15"/>
+  </g>
+
+  <!-- Background Indian Neem Trees & Foliage -->
+  <g id="bgFoliage">
+    <path d="M120,450 Q100,280 180,220 Q240,160 330,210 Q400,250 380,450 Z" fill="url(#treeGreen1)"/>
+    <circle cx="230" cy="240" r="65" fill="url(#treeGreen2)"/>
+    <circle cx="300" cy="270" r="60" fill="url(#treeGreen1)"/>
+
+    <path d="M880,450 Q860,260 940,200 Q1020,150 1100,210 Q1160,270 1120,450 Z" fill="url(#treeGreen1)"/>
+    <circle cx="980" cy="230" r="65" fill="url(#treeGreen2)"/>
+    <circle cx="1060" cy="260" r="60" fill="url(#treeGreen1)"/>
+  </g>
+
+  <!-- Background Compound Wall -->
+  <rect x="0" y="420" width="1200" height="100" fill="#fed7aa"/>
+  <rect x="0" y="415" width="1200" height="15" fill="#f97316"/>
+  <!-- Brick Line Accents -->
+  <line x1="0" y1="450" x2="1200" y2="450" stroke="#fb923c" stroke-width="2" opacity="0.5"/>
+  <line x1="0" y1="480" x2="1200" y2="480" stroke="#fb923c" stroke-width="2" opacity="0.5"/>
+
+  <!-- ==================== PUBLIC WATER FACILITY PAVILION (SAME EXACT STRUCTURE) ==================== -->
+  <g id="waterPavilion">
+    <!-- RAISED CONCRETE PLATFORM BASE -->
+    <polygon points="180,680 1020,680 1120,770 80,770" fill="url(#platTop)"/>
+    <polygon points="80,770 1120,770 1120,795 80,795" fill="url(#platFace)"/>
+    
+    <!-- Platform Steps -->
+    <polygon points="380,770 820,770 850,795 350,795" fill="#e2e8f0"/>
+    <polygon points="350,795 850,795 850,800 350,800" fill="#94a3b8"/>
+
+    <!-- Tiled Back Wall of the Water Facility -->
+    <path d="M280,310 L920,310 L920,680 L280,680 Z" fill="url(#tileWall)" filter="url(#softShadow)"/>
+    <!-- Ceramic Tile Grid Lines -->
+    <g stroke="#7dd3fc" stroke-width="1.5" opacity="0.6">
+      <line x1="280" y1="360" x2="920" y2="360"/>
+      <line x1="280" y1="410" x2="920" y2="410"/>
+      <line x1="280" y1="460" x2="920" y2="460"/>
+      <line x1="280" y1="510" x2="920" y2="510"/>
+      <line x1="280" y1="560" x2="920" y2="560"/>
+      <line x1="280" y1="610" x2="920" y2="610"/>
+      <line x1="360" y1="310" x2="360" y2="680"/>
+      <line x1="440" y1="310" x2="440" y2="680"/>
+      <line x1="520" y1="310" x2="520" y2="680"/>
+      <line x1="600" y1="310" x2="600" y2="680"/>
+      <line x1="680" y1="310" x2="680" y2="680"/>
+      <line x1="760" y1="310" x2="760" y2="680"/>
+      <line x1="840" y1="310" x2="840" y2="680"/>
+    </g>
+
+    <!-- Decorative Top Border on Wall -->
+    <rect x="280" y="310" width="640" height="24" fill="#0284c7"/>
+    <!-- Facility Header Plaque (Damaged in Before) -->
+    <rect x="420" y="345" width="360" height="48" rx="8" fill="#ffffff" filter="url(#softShadow)"/>
+    <text x="600" y="375" fill="#0369a1" font-family="system-ui, sans-serif" font-weight="800" font-size="17" text-anchor="middle" letter-spacing="1">COMMUNITY DRINKING WATER</text>
+
+    <!-- LEFT & RIGHT 3D PILLARS -->
+    <!-- Left Pillar -->
+    <rect x="240" y="270" width="48" height="420" rx="4" fill="url(#pillarGrad)" filter="url(#softShadow)"/>
+    <rect x="232" y="260" width="64" height="16" rx="4" fill="#b45309"/>
+    <rect x="232" y="665" width="64" height="20" rx="4" fill="#b45309"/>
+    
+    <!-- Right Pillar -->
+    <rect x="912" y="270" width="48" height="420" rx="4" fill="url(#pillarGrad)" filter="url(#softShadow)"/>
+    <rect x="904" y="260" width="64" height="16" rx="4" fill="#b45309"/>
+    <rect x="904" y="665" width="64" height="20" rx="4" fill="#b45309"/>
+
+    <!-- PITCHED TERRACOTTA ROOF OVERHANG -->
+    <polygon points="180,270 600,160 1020,270 980,290 600,185 220,290" fill="url(#terracottaRoof)" filter="url(#softShadow)"/>
+    <!-- Roof Tile Rafter Beams -->
+    <polygon points="210,285 600,180 990,285 970,300 600,195 230,300" fill="#7c2d12"/>
+    <line x1="350" y1="230" x2="350" y2="280" stroke="#78350f" stroke-width="8"/>
+    <line x1="850" y1="230" x2="850" y2="280" stroke="#78350f" stroke-width="8"/>
+    <line x1="600" y1="180" x2="600" y2="270" stroke="#78350f" stroke-width="10"/>
+  </g>
+
+  <!-- ==================== DAMAGED INFRASTRUCTURE (BEFORE) ==================== -->
+  <g id="damagedWaterSystem">
+    <!-- Rusted Corroded Supply Pipe -->
+    <rect x="340" y="520" width="520" height="28" rx="6" fill="url(#rustPipe)" stroke="#451a03" stroke-width="2"/>
+    <rect x="335" y="515" width="16" height="38" rx="3" fill="#78350f"/>
+    <!-- Pipe Wall Brackets (Loose/Rusted) -->
+    <rect x="420" y="505" width="16" height="55" rx="3" fill="#451a03"/>
+    <rect x="760" y="505" width="16" height="55" rx="3" fill="#451a03"/>
+
+    <!-- TAP 1 (Left): Cracked Joint with Continuous Spray Leak -->
+    <g transform="translate(420, 520)">
+      <!-- Pipe T-joint with rust -->
+      <rect x="40" y="0" width="30" height="45" rx="4" fill="#78350f"/>
+      <path d="M55,45 L55,75 L45,85 L45,95 L65,95 L65,85 L55,75" fill="#92400e" stroke="#451a03" stroke-width="2"/>
+      <!-- Broken / skewed faucet handle -->
+      <polygon points="35,65 55,60 75,70 55,75" fill="#451a03"/>
+      <!-- Water Leak Spurt from cracked joint -->
+      <path d="M70,20 Q120,-10 160,50 Q130,90 85,35" fill="#38bdf8" opacity="0.8"/>
+      <path d="M60,35 Q100,50 120,110" stroke="#0284c7" stroke-width="4" stroke-dasharray="6,4" fill="none"/>
+      <!-- Splash droplets -->
+      <circle cx="150" cy="40" r="4" fill="#38bdf8"/>
+      <circle cx="170" cy="65" r="3" fill="#0284c7"/>
+      <circle cx="135" cy="85" r="5" fill="#38bdf8"/>
+    </g>
+
+    <!-- TAP 2 (Center): Broken Off / Defective with WARNING TAG -->
+    <g transform="translate(575, 520)">
+      <rect x="15" y="0" width="30" height="40" rx="4" fill="#78350f"/>
+      <!-- Broken jagged pipe stump -->
+      <polygon points="15,40 25,48 35,42 45,50 45,40" fill="#451a03" stroke="#b45309" stroke-width="2"/>
+      <!-- Dirty brown drop leaking -->
+      <ellipse cx="30" cy="65" rx="6" ry="10" fill="#b45309"/>
+      <ellipse cx="30" cy="85" rx="4" ry="7" fill="#78350f"/>
+      <!-- Hanging "OUT OF ORDER" Defective Warning Tag -->
+      <path d="M30,35 L10,65 L55,65 Z" fill="#ef4444" stroke="#b91c1c" stroke-width="2" filter="url(#softShadow)"/>
+      <text x="32" y="60" fill="#ffffff" font-family="sans-serif" font-weight="900" font-size="14" text-anchor="middle">!</text>
+      <rect x="0" y="68" width="65" height="22" rx="4" fill="#ef4444"/>
+      <text x="32" y="83" fill="#ffffff" font-family="sans-serif" font-weight="800" font-size="9" text-anchor="middle">BROKEN</text>
+    </g>
+
+    <!-- TAP 3 (Right): Corroded / Dripping Tap -->
+    <g transform="translate(730, 520)">
+      <rect x="15" y="0" width="30" height="45" rx="4" fill="#78350f"/>
+      <path d="M30,45 L30,75 L20,85 L20,95 L40,95 L40,85 L30,75" fill="#92400e" stroke="#451a03" stroke-width="2"/>
+      <rect x="18" y="60" width="24" height="8" rx="2" fill="#451a03"/>
+      <!-- Rust stain running down wall -->
+      <path d="M28,95 Q25,125 32,155 L38,155 Q35,125 34,95 Z" fill="#b45309" opacity="0.6"/>
+    </g>
+
+    <!-- DIRTY WATER PUDDLE & CRACKED PLATFORM TILES (BEFORE) -->
+    <!-- Large stagnant dirty puddle on the platform -->
+    <ellipse cx="600" cy="710" rx="280" ry="38" fill="#1e3a8a" opacity="0.75"/>
+    <ellipse cx="580" cy="712" rx="240" ry="28" fill="#0f172a" opacity="0.6"/>
+    <ellipse cx="480" cy="705" rx="90" ry="18" fill="#3b82f6" opacity="0.5"/>
+    
+    <!-- Big deep crack splitting the concrete platform -->
+    <path d="M340,680 L420,705 L480,695 L550,735 L620,725 L710,755 L780,745 L860,770" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <path d="M550,735 L530,765 L490,775" stroke="#1e293b" stroke-width="3" stroke-linecap="round" fill="none"/>
+    
+    <!-- Overflown puddle trickling over the steps -->
+    <path d="M520,770 L520,795 Q540,800 560,795 L560,770 Z" fill="#1e3a8a" opacity="0.8"/>
+  </g>
+
+  <!-- Clear Stylized Status Badge Overlay -->
+  <g id="statusBadge" transform="translate(40, 40)">
+    <rect x="0" y="0" width="180" height="46" rx="23" fill="#1e293b" opacity="0.9" filter="url(#softShadow)"/>
+    <circle cx="24" cy="23" r="10" fill="#ef4444"/>
+    <text x="46" y="29" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="16" letter-spacing="1.5">BEFORE</text>
+  </g>
+</svg>

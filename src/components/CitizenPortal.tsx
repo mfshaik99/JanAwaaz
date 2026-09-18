@@ -6,6 +6,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { DEMO_REQUESTS, DEMO_SOLVED_ISSUES } from '../data/mockData';
 import { createCustomIcon, MapUpdater } from '../utils/mapUtils';
 
@@ -17,7 +19,49 @@ export function CitizenPortal() {
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'success' | 'error'>('idle');
   const [selectedDemoRequest, setSelectedDemoRequest] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [firebaseRequests, setFirebaseRequests] = useState<any[]>([]);
   const maptilerApiKey = import.meta.env.VITE_MAPTILER_API_KEY || 'f4N2cKxH48dlsL409E5g'; // Keep default key if env is empty
+
+  // Real-time listener for community requests from Firestore
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'developmentRequests'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const docs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            category: data.category || 'General',
+            location: data.location?.address || 'India',
+            lat: data.location?.lat || 17.3850,
+            lng: data.location?.lng || 78.4867,
+            request: data.originalText || data.translatedText || '',
+            aiSummary: data.aiSummary || data.summary || '',
+            demand: data.priority === 'Critical' || data.priority === 'High' ? 'High' : 'Medium',
+            status: data.status || 'Under Review',
+            photo: data.media && data.media.length > 0 ? data.media[0].url : '/images/road_damage.jpg',
+            markerColor: data.status === 'Completed' || data.status === 'Solved' ? '#10b981' : data.status === 'Under Review' ? '#3b82f6' : '#f59e0b',
+            emoji: data.category === 'Roads' ? '🛣️' : data.category === 'Water' ? '💧' : data.category === 'Healthcare' ? '🏥' : '💡'
+          };
+        });
+        setFirebaseRequests(docs);
+      }, (err) => {
+        console.warn('Firestore real-time subscription error:', err);
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn('Could not initialize Firestore listener:', err);
+    }
+  }, []);
+
+  const filteredRequests = DEMO_REQUESTS.filter(req => {
+    if (statusFilter === 'All') return true;
+    if (statusFilter === 'Solved / Completed') {
+      return req.status === 'Solved' || req.status === 'Completed';
+    }
+    return req.status.toLowerCase() === statusFilter.toLowerCase();
+  });
 
   useEffect(() => {
     let watchId: number;
@@ -183,7 +227,7 @@ export function CitizenPortal() {
                   </Marker>
                 )}
                 
-                {/* Demo Markers */}
+                {/* Request Markers */}
                 {DEMO_REQUESTS.map((req) => (
                   <Marker 
                     key={req.id} 
@@ -191,20 +235,31 @@ export function CitizenPortal() {
                     icon={createCustomIcon(req.markerColor)}
                   >
                     <Popup>
-                      <div className="min-w-[200px] text-sm font-sans">
+                      <div className="min-w-[200px] max-w-[240px] text-sm font-sans">
+                        {req.photo && (
+                          <div className="h-28 w-full rounded-xl overflow-hidden mb-2">
+                            <img src={req.photo} alt={req.category} className="w-full h-full object-cover" />
+                          </div>
+                        )}
                         <div className="font-bold text-slate-900 mb-1 flex items-center gap-1">
                           {req.emoji} {req.category}
                         </div>
-                        <div className="text-slate-500 mb-2">{req.location}</div>
-                        <p className="text-slate-700 italic mb-3">"{req.request}"</p>
+                        <div className="text-slate-500 mb-1.5 flex items-center gap-1 text-xs">
+                          <MapPin size={12} className="text-slate-400 flex-shrink-0" />
+                          {req.location}
+                        </div>
+                        <p className="text-slate-700 italic mb-2 text-xs leading-relaxed line-clamp-2">"{req.request}"</p>
                         <div className="flex items-center gap-2 mb-3 text-xs font-semibold">
                           <span className={`px-2 py-0.5 rounded-md ${req.demand === 'High' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-orange-50 text-orange-700 border border-orange-100'}`}>
                             {req.demand === 'High' ? '🔴' : '🟠'} {req.demand} Demand
                           </span>
+                          <span className="text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md text-[11px]">
+                            {req.status}
+                          </span>
                         </div>
                         <button 
                           onClick={() => setSelectedDemoRequest(req)}
-                          className="w-full py-1.5 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 active:scale-[0.98] google-transition-fast"
+                          className="w-full py-1.5 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 active:scale-[0.98] google-transition-fast text-xs"
                         >
                           View Request
                         </button>
@@ -310,14 +365,48 @@ export function CitizenPortal() {
             </div>
           </div>
 
-          {/* Example Demo Cards Grid */}
+          {/* Request Status Filter Bar */}
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
+              {['All', 'Under Review', 'Prioritized', 'Planned', 'In Progress', 'Solved / Completed'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap google-transition active:scale-[0.98] ${
+                    statusFilter === status
+                      ? 'bg-blue-600 text-white google-shadow-sm'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs font-semibold text-slate-500">
+              Showing {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {/* Community Requests Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {DEMO_REQUESTS.map((req) => (
-              <div 
-                key={req.id} 
-                className="bg-white rounded-3xl border border-slate-200 google-shadow-sm overflow-hidden flex flex-col hover:google-shadow-md google-transition-fast cursor-pointer"
-                onClick={() => setSelectedDemoRequest(req)}
-              >
+            {filteredRequests.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-3xl border border-slate-200">
+                <p className="text-base font-medium">No community requests found with status "{statusFilter}".</p>
+                <button 
+                  onClick={() => setStatusFilter('All')} 
+                  className="mt-3 text-sm text-blue-600 font-semibold hover:underline"
+                >
+                  Show all 4 requests
+                </button>
+              </div>
+            ) : (
+              filteredRequests.map((req) => (
+                <div 
+                  key={req.id} 
+                  className="bg-white rounded-3xl border border-slate-200 google-shadow-sm overflow-hidden flex flex-col hover:google-shadow-md google-transition-fast cursor-pointer"
+                  onClick={() => setSelectedDemoRequest(req)}
+                >
                 <div className="h-44 bg-slate-100 relative overflow-hidden">
                   <img src={req.photo} alt={req.category} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
                   <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-slate-800 flex items-center gap-1.5 google-shadow-sm">
@@ -354,7 +443,7 @@ export function CitizenPortal() {
                   </div>
                 </div>
               </div>
-            ))}
+            )))}
           </div>
 
         </div>
@@ -366,7 +455,7 @@ export function CitizenPortal() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden relative"
+            className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden relative max-h-[90vh] overflow-y-auto"
            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
             <div className="absolute top-4 right-4 z-10">
               <button 
@@ -377,7 +466,7 @@ export function CitizenPortal() {
               </button>
             </div>
             
-            <div className="h-64 sm:h-80 w-full relative bg-slate-100">
+            <div className="h-64 sm:h-80 w-full relative bg-slate-100 flex-shrink-0">
               <img src={selectedDemoRequest.photo} alt="Community Evidence" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
               <div className="absolute bottom-6 left-6 text-white">
@@ -399,6 +488,17 @@ export function CitizenPortal() {
                 </p>
               </div>
 
+              {selectedDemoRequest.aiSummary && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Sparkles size={16} className="text-blue-600" /> AI-Generated Summary
+                  </h4>
+                  <p className="text-base text-slate-700 p-4 bg-blue-50/60 rounded-xl border border-blue-100 leading-relaxed">
+                    {selectedDemoRequest.aiSummary}
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl border border-slate-200 bg-white">
                   <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Demand Level</h4>
@@ -416,7 +516,7 @@ export function CitizenPortal() {
 
               <div className="flex justify-center pt-2">
                 <span className="px-4 py-1.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-full uppercase tracking-wider">
-                  Example Demo Request
+                  Community Request Details
                 </span>
               </div>
             </div>
@@ -469,7 +569,7 @@ export function CitizenPortal() {
                 <div className="flex flex-col md:flex-row relative">
                   {/* Before */}
                   <div className="flex-1 relative h-56 sm:h-64 md:h-80 bg-slate-100">
-                    <img src={issue.beforeImage} alt="Before" className="w-full h-full object-cover" />
+                    <img src={issue.beforeImage} alt="Before" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
                       <span className="text-white font-bold tracking-widest uppercase bg-black/40 px-3 py-1 rounded backdrop-blur-sm border border-white/20">
                         Before
@@ -489,7 +589,7 @@ export function CitizenPortal() {
 
                   {/* After */}
                   <div className="flex-1 relative h-56 sm:h-64 md:h-80 bg-slate-100">
-                    <img src={issue.afterImage} alt="After" className="w-full h-full object-cover" />
+                    <img src={issue.afterImage} alt="After" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
                       <span className="text-white font-bold tracking-widest uppercase bg-emerald-500/80 px-3 py-1 rounded backdrop-blur-sm border border-emerald-400/50">
                         After
@@ -499,10 +599,32 @@ export function CitizenPortal() {
                 </div>
 
                 <div className="p-6 sm:p-6 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <p className="text-slate-700 text-lg max-w-2xl">
-                    {issue.description}
-                  </p>
-                  <div className="bg-blue-50 border border-blue-100 px-5 py-3 rounded-xl flex items-center gap-3 w-full md:w-auto">
+                  <div className="space-y-3 max-w-2xl">
+                    {issue.request && (
+                      <div>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Original Citizen Request:</span>
+                        <p className="text-slate-800 text-sm font-medium italic mt-0.5">"{issue.request}"</p>
+                      </div>
+                    )}
+                    <p className="text-slate-700 text-base leading-relaxed">
+                      {issue.description}
+                    </p>
+                    {issue.aiSummary && (
+                      <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-xs text-slate-700 flex items-start gap-2">
+                        <Sparkles size={14} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <strong className="text-blue-900 block mb-0.5">AI Summary & Assessment:</strong>
+                          <span>{issue.aiSummary}</span>
+                        </div>
+                      </div>
+                    )}
+                    {issue.impact && (
+                      <div className="text-xs text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 font-medium inline-block">
+                        <strong>Impact:</strong> {issue.impact}
+                      </div>
+                    )}
+                  </div>
+                  <div className="bg-blue-50 border border-blue-100 px-5 py-3 rounded-xl flex items-center gap-3 w-full md:w-auto flex-shrink-0">
                     <Target size={20} className="text-blue-600 flex-shrink-0" />
                     <div>
                       <span className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-0.5">Result</span>
