@@ -81,11 +81,17 @@ export function Register() {
   };
 
   const setupRecaptcha = () => {
-    if (!(window as any).recaptchaVerifier) {
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible'
-      });
+    if ((window as any).recaptchaVerifier) {
+      try {
+        (window as any).recaptchaVerifier.clear();
+      } catch (e) {
+        // ignore
+      }
+      (window as any).recaptchaVerifier = null;
     }
+    (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible'
+    });
   };
 
   const handleSendOtp = async () => {
@@ -228,6 +234,8 @@ export function Register() {
         <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account? <Link to="/login" className="text-blue-600 font-medium hover:underline">Log in</Link>
         </p>
+
+        <div id="recaptcha-container"></div>
       </div>
     </div>
   );

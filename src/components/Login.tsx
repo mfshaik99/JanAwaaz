@@ -76,8 +76,6 @@ export function Login() {
       const userCred = await signInWithEmailAndPassword(auth, email, password);
       toast.success('Logged in successfully');
       
-      const { getDoc, doc } = await import('firebase/firestore');
-      const { db } = await import('../firebase');
       const docSnap = await getDoc(doc(db, 'users', userCred.user.uid));
       
       if (docSnap.exists() && docSnap.data().role === 'admin') {
@@ -93,11 +91,17 @@ export function Login() {
   };
 
   const setupRecaptcha = () => {
-    if (!(window as any).recaptchaVerifier) {
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible'
-      });
+    if ((window as any).recaptchaVerifier) {
+      try {
+        (window as any).recaptchaVerifier.clear();
+      } catch (e) {
+        // ignore
+      }
+      (window as any).recaptchaVerifier = null;
     }
+    (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible'
+    });
   };
 
   const handleSendOtp = async () => {
@@ -239,6 +243,8 @@ export function Login() {
         <p className="mt-6 text-center text-sm text-slate-600">
           Don't have an account? <Link to="/register" className="text-blue-600 font-medium hover:underline">Create Account</Link>
         </p>
+
+        <div id="recaptcha-container"></div>
       </div>
     </div>
   );

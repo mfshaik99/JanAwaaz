@@ -18,23 +18,41 @@
       "description": "A citizen's request for infrastructure/development.",
       "type": "object",
       "properties": {
+        "requestId": { "type": "string", "maxLength": 128 },
         "citizenId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
         "citizenName": { "type": "string", "maxLength": 100 },
+        "citizenContact": { "type": "string", "maxLength": 200 },
         "language": { "type": "string", "maxLength": 10 },
-        "originalText": { "type": "string", "maxLength": 5000 },
-        "translatedText": { "type": "string", "maxLength": 5000 },
+        "description": { "type": "string", "maxLength": 10000 },
+        "originalText": { "type": "string", "maxLength": 10000 },
+        "translatedText": { "type": "string", "maxLength": 10000 },
         "category": { "type": "string", "maxLength": 100 },
-        "problem": { "type": "string", "maxLength": 500 },
+        "problem": { "type": "string", "maxLength": 10000 },
         "severity": { "type": "string", "maxLength": 50 },
         "urgency": { "type": "string", "maxLength": 50 },
         "safetyRisk": { "type": "string", "maxLength": 50 },
         "priorityScore": { "type": "number" },
         "priority": { "type": "string", "maxLength": 50 },
-        "aiSummary": { "type": "string", "maxLength": 1000 },
-        "summary": { "type": "string", "maxLength": 1000 },
-        "recommendedAction": { "type": "string", "maxLength": 1000 },
-        "status": { "type": "string", "enum": ["Submitted", "Under Review", "Prioritized", "Planned", "In Progress", "Completed"] },
-        "createdAt": { "type": "string", "maxLength": 50 },
+        "aiSummary": { "type": "string", "maxLength": 2000 },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "recommendedAction": { "type": "string", "maxLength": 2000 },
+        "aiStatus": { "type": "string", "maxLength": 50 },
+        "mediaStatus": { "type": "string", "maxLength": 50 },
+        "mediaUrls": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 1000 }
+        },
+        "status": { "type": "string", "enum": ["processing", "submitted", "Submitted", "Under Review", "Prioritized", "Planned", "In Progress", "Solved", "Completed", "Solved / Completed"] },
+        "photos": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 200000 }
+        },
+        "videos": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 200000 }
+        },
+        "voiceUrl": { "type": "string", "maxLength": 200000 },
         "media": {
           "type": "array",
           "items": {
@@ -50,9 +68,18 @@
           "type": "object",
           "properties": {
             "lat": { "type": "number" },
-            "lng": { "type": "number" }
+            "lng": { "type": "number" },
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" },
+            "address": { "type": "string", "maxLength": 500 },
+            "readableLocation": { "type": "string", "maxLength": 500 }
           }
-        }
+        },
+        "aiAnalysis": {
+          "type": "object"
+        },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
       },
       "required": ["citizenId", "status"]
     }

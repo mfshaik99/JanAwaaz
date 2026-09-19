@@ -6,7 +6,7 @@ service cloud.firestore {
     }
     
     function isValidId(id) { 
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$'); 
     }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
@@ -22,50 +22,76 @@ service cloud.firestore {
     }
 
     function isAuthorizedAdminEmail() {
-      // The 3 pre-authorized accounts
-      return request.auth.token.email in ['mfshaik99@gmail.com', 'chirudeepartham@gmail.com', 'maazeem206@gmail.com'];
+      // The 3 pre-authorized accounts with safe email token check
+      return isSignedIn() && 
+             'email' in request.auth.token && 
+             request.auth.token.email != null &&
+             request.auth.token.email.lower() in ['mfshaik99@gmail.com', 'chirudeepartham@gmail.com', 'maazeem206@gmail.com'];
     }
 
     // Helper for development requests
     function isValidDevelopmentRequest(data) {
       return data.keys().hasAll(['citizenId', 'status', 'createdAt']) &&
              data.citizenId is string && data.citizenId.size() <= 128 &&
-             data.status is string && data.status in ["Submitted", "Under Review", "Prioritized", "Planned", "In Progress", "Completed"] &&
+             data.status is string && data.status in ["processing", "Processing", "submitted", "Submitted", "Under Review", "Prioritized", "Planned", "In Progress", "Solved", "Completed", "Solved / Completed"] &&
+             (!('requestId' in data) || (data.requestId is string && data.requestId.size() <= 128)) &&
+             (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
              (!('citizenName' in data) || (data.citizenName is string && data.citizenName.size() <= 100)) &&
-             (!('originalText' in data) || (data.originalText is string && data.originalText.size() <= 5000)) &&
-             (!('translatedText' in data) || (data.translatedText is string && data.translatedText.size() <= 5000)) &&
+             (!('citizenContact' in data) || (data.citizenContact is string && data.citizenContact.size() <= 200)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 10000)) &&
+             (!('originalText' in data) || (data.originalText is string && data.originalText.size() <= 10000)) &&
+             (!('translatedText' in data) || data.translatedText == null || (data.translatedText is string && data.translatedText.size() <= 10000)) &&
              (!('language' in data) || (data.language is string && data.language.size() <= 10)) &&
              (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
-             (!('problem' in data) || (data.problem is string && data.problem.size() <= 500)) &&
+             (!('problem' in data) || (data.problem is string && data.problem.size() <= 10000)) &&
              (!('severity' in data) || (data.severity is string && data.severity.size() <= 50)) &&
              (!('urgency' in data) || (data.urgency is string && data.urgency.size() <= 50)) &&
              (!('safetyRisk' in data) || (data.safetyRisk is string && data.safetyRisk.size() <= 50)) &&
              (!('priorityScore' in data) || data.priorityScore is number) &&
              (!('priority' in data) || (data.priority is string && data.priority.size() <= 50)) &&
-             (!('summary' in data) || (data.summary is string && data.summary.size() <= 1000)) &&
-             (!('aiSummary' in data) || (data.aiSummary is string && data.aiSummary.size() <= 1000)) &&
-             (!('recommendedAction' in data) || (data.recommendedAction is string && data.recommendedAction.size() <= 1000)) &&
-             (!('media' in data) || (data.media is list && (data.media.size() == 0 || (data.media[0] is map && data.media[0].url is string)))) &&
-             (!('location' in data) || (data.location == null || (data.location is map && 'lat' in data.location && 'lng' in data.location)));
+             (!('summary' in data) || data.summary == null || (data.summary is string && data.summary.size() <= 2000)) &&
+             (!('aiSummary' in data) || data.aiSummary == null || (data.aiSummary is string && data.aiSummary.size() <= 2000)) &&
+             (!('aiAnalysis' in data) || data.aiAnalysis == null || data.aiAnalysis is map) &&
+             (!('recommendedAction' in data) || data.recommendedAction == null || (data.recommendedAction is string && data.recommendedAction.size() <= 2000)) &&
+             (!('aiStatus' in data) || (data.aiStatus is string && data.aiStatus.size() <= 50)) &&
+             (!('mediaStatus' in data) || (data.mediaStatus is string && data.mediaStatus.size() <= 50)) &&
+             (!('mediaUrls' in data) || data.mediaUrls is list) &&
+             (!('photos' in data) || data.photos is list) &&
+             (!('videos' in data) || data.videos is list) &&
+             (!('voiceUrl' in data) || data.voiceUrl == null || data.voiceUrl is string) &&
+             (!('media' in data) || data.media is list) &&
+             (!('latitude' in data) || (data.latitude == null || data.latitude is number)) &&
+             (!('longitude' in data) || (data.longitude == null || data.longitude is number)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp || (data.createdAt is string && data.createdAt.size() <= 50)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp || (data.updatedAt is string && data.updatedAt.size() <= 50)) &&
+             (!('location' in data) || (data.location == null || data.location is map));
     }
 
     match /developmentRequests/{requestId} {
-      allow read, list: if true;
+      allow get, list: if isSignedIn();
       
       allow create: if isSignedIn() && 
                     isValidId(requestId) &&
                     isValidDevelopmentRequest(incoming()) &&
-                    incoming().citizenId == request.auth.uid;
+                    (incoming().citizenId == request.auth.uid || ('userId' in incoming() && incoming().userId == request.auth.uid));
                     
       allow update: if isSignedIn() && 
-                    isValidDevelopmentRequest(incoming()) &&
-                    ((request.auth.uid == existing().citizenId && incoming().diff(existing()).affectedKeys().hasOnly(['status'])) || isAuthorizedAdminEmail());
+                    isValidDevelopmentRequest(incoming()) && 
+                    (isAuthorizedAdminEmail() || 
+                     ((request.auth.uid == existing().citizenId || ('userId' in existing() && request.auth.uid == existing().userId)) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly([
+                        'status', 'updatedAt', 'aiStatus', 'mediaStatus', 'mediaUrls', 'photos', 'videos', 
+                        'voiceUrl', 'media', 'aiSummary', 'summary', 'aiAnalysis', 'priorityScore', 'priority', 
+                        'category', 'problem', 'severity', 'urgency', 'safetyRisk', 'recommendedAction', 
+                        'translatedText', 'location', 'latitude', 'longitude', 'description'
+                      ])));
       
       allow delete: if isSignedIn() && isAuthorizedAdminEmail();
     }
 
     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAuthorizedAdminEmail());
+      allow list: if isSignedIn() && isAuthorizedAdminEmail();
       
       allow create: if isSignedIn() && 
                     isValidId(userId) && 
@@ -78,6 +104,8 @@ service cloud.firestore {
                     isValidUser(incoming()) &&
                     incoming().role == existing().role && // Prevent changing own role
                     incoming().createdAt == existing().createdAt;
+
+      allow delete: if isSignedIn() && isAuthorizedAdminEmail();
     }
   }
 }

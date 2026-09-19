@@ -127,7 +127,8 @@ app.post('/api/enhance', async (req, res) => {
       }
     }
     
-    res.json({ enhancedText: response.text });
+    let enhancedText = typeof response.text === 'function' ? (response.text as any)() : response.text;
+    res.json({ enhancedText });
   } catch (error) {
     console.error('Error enhancing text:', error);
     res.status(500).json({ error: 'Failed to enhance text' });
@@ -166,7 +167,8 @@ Draft a short, empathetic, and professional official response (max 3-4 sentences
       }
     }
     
-    res.json({ draftText: response.text });
+    let draftText = typeof response.text === 'function' ? (response.text as any)() : response.text;
+    res.json({ draftText });
   } catch (error) {
     console.error('Error drafting response:', error);
     res.status(500).json({ error: 'Failed to draft response' });

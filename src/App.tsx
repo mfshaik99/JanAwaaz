@@ -8,6 +8,7 @@ import { SubmitRequest } from './components/SubmitRequest';
 import { Dashboard } from './components/Dashboard';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
+import { MyRequests } from './components/MyRequests';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 
@@ -21,21 +22,31 @@ const PageSkeleton = () => (
   </div>
 );
 
+const AUTHORIZED_ADMIN_EMAILS = [
+  'mfshaik99@gmail.com',
+  'chirudeepartham@gmail.com',
+  'maazeem206@gmail.com'
+];
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const [showError, setShowError] = useState(false);
   
+  const isAdmin = user && (
+    profile?.role === 'admin' || 
+    AUTHORIZED_ADMIN_EMAILS.includes((user.email || '').toLowerCase())
+  );
+
   useEffect(() => {
-    if (!loading && user && profile?.role !== 'admin') {
+    if (!loading && user && !isAdmin) {
       setShowError(true);
       const timer = setTimeout(() => {
         navigate('/');
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [loading, user, profile, navigate]);
+  }, [loading, user, isAdmin, navigate]);
 
   if (loading) return <PageSkeleton />;
   if (!user) return <Navigate to="/login" />;
@@ -53,7 +64,7 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
     );
   }
   
-  if (profile?.role === 'admin') {
+  if (isAdmin) {
     return <>{children}</>;
   }
   
@@ -82,6 +93,14 @@ export default function App() {
               element={
                 <ProtectedCitizenRoute>
                   <SubmitRequest />
+                </ProtectedCitizenRoute>
+              } 
+            />
+            <Route 
+              path="/my-requests" 
+              element={
+                <ProtectedCitizenRoute>
+                  <MyRequests />
                 </ProtectedCitizenRoute>
               } 
             />
